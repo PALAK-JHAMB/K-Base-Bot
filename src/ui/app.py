@@ -153,7 +153,8 @@ if prompt := st.chat_input("Ask your question..."):
                 # If not in FAQ, use the RAG chain
                 st.info("No FAQ match found. Searching documents...")
                 # The final chain expects a dictionary with a "question" key
-                response = rag_chain.invoke({"question": prompt})
+                response = rag_chain.invoke(prompt)
+                
             
             # Display the final response (from either FAQ or RAG)
             st.markdown(response)
