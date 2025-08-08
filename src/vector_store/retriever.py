@@ -2,27 +2,47 @@
 
 import nest_asyncio
 nest_asyncio.apply()
+
 import yaml
+import os
 from langchain_google_genai import GoogleGenerativeAIEmbeddings
-from langchain.vectorstores import FAISS
+from langchain_community.vectorstores import FAISS
 import logging
+import streamlit as st # Import streamlit to access secrets
 
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger(__name__)
 
+# --- DEFINE PROJECT ROOT for reliable file paths ---
+PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+
 def get_retriever():
     """
-    Loads the FAISS vector store from the local path specified in the config
-    and returns it as a LangChain retriever.
+    Loads the FAISS vector store using absolute paths for deployment compatibility.
     """
     try:
-        # 1. Load configuration
-        with open("config/settings.yaml", 'r') as f:
-            config = yaml.safe_load(f)
+        # --- Load Config using absolute path and hybrid secrets logic ---
+        config = {}
+        settings_path = os.path.join(PROJECT_ROOT, "config", "settings.yaml")
+        try:
+            with open(settings_path, 'r') as f:
+                config = yaml.safe_load(f)
+            if "API_KEY" in st.secrets:
+                config['gemini']['api_key'] = st.secrets["API_KEY"]
+        except FileNotFoundError:
+            if "API_KEY" in st.secrets:
+                config = {
+                    "gemini": {"api_key": st.secrets["API_KEY"], "embedding_model": "models/embedding-001"},
+                    "data": {"vector_store_path": "vector_store/faiss_index"}
+                }
+            else:
+                raise ValueError("API Key not found in Streamlit secrets.")
 
         api_key = config['gemini']['api_key']
-        vector_store_path = config['data']['vector_store_path']
         embedding_model = config['gemini']['embedding_model']
+        
+        # --- Use absolute path for the vector store ---
+        vector_store_path = os.path.join(PROJECT_ROOT, config['data']['vector_store_path'])
 
         # 2. Initialize embeddings model
         embeddings = GoogleGenerativeAIEmbeddings(
@@ -32,7 +52,6 @@ def get_retriever():
         
         # 3. Load the local FAISS vector store
         log.info(f"Loading vector store from {vector_store_path}...")
-        # allow_dangerous_deserialization is needed for FAISS with pickle
         vector_store = FAISS.load_local(
             vector_store_path, 
             embeddings,
@@ -40,14 +59,13 @@ def get_retriever():
         )
         
         log.info("Vector store loaded successfully.")
-        # Return the vector store as a retriever
-        return vector_store.as_retriever(search_kwargs={"k": 7}) # Retrieve top 3 documents
+        return vector_store.as_retriever(search_kwargs={"k": 7})
 
     except FileNotFoundError:
-        log.error(f"Vector store not found at {vector_store_path}. Please run vector_builder.py first.")
+        log.error(f"Vector store not found at {vector_store_path}. Please ensure it is built.")
+        st.error(f"Vector store not found at {vector_store_path}. Build process may have failed.")
         return None
     except Exception as e:
         log.error(f"An error occurred while loading the retriever: {e}")
+        st.error(f"An error occurred while loading the retriever: {e}")
         return None
-    
-    

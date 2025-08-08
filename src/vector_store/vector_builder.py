@@ -2,7 +2,7 @@ import yaml
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_google_genai import GoogleGenerativeAIEmbeddings
 from langchain_community.vectorstores import FAISS
-
+PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
 import sys
 import os
 
@@ -13,13 +13,16 @@ from src.ingestion.pdf_loader import load_and_process_pdfs
 def build_vector_store():
     """Builds and saves the vector store from PDF documents using advanced parsing."""
     # 1. Load configuration
-    with open("config/settings.yaml", 'r') as f:
+    # with open("config/settings.yaml", 'r') as f:
+    #     config = yaml.safe_load(f)
+    settings_path = os.path.join(PROJECT_ROOT, "config", "settings.yaml")
+    with open(settings_path, 'r') as f:
         config = yaml.safe_load(f)
-
     api_key = config['gemini']['api_key']
-    pdf_path = config['data']['pdf_path']
-    vector_store_path = config['data']['vector_store_path']
-
+    # pdf_path = config['data']['pdf_path']
+    # vector_store_path = config['data']['vector_store_path']
+    pdf_path = os.path.join(PROJECT_ROOT, config['data']['pdf_path'])
+    vector_store_path = os.path.join(PROJECT_ROOT, config['data']['vector_store_path'])
     # 2. Load PDF documents using our new, powerful loader
     print("Loading and processing PDF documents with 'unstructured'...")
     documents = load_and_process_pdfs(pdf_path, config)
