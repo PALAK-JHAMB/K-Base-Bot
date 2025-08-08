@@ -61,10 +61,28 @@ def load_all_resources():
             st.stop()
 
     # --- 2. Load or Build the Vector Store and Create Retriever ---
-    vector_store = get_or_create_vector_store(config)
-    if vector_store is None:
-        st.error("Failed to load or build the vector store. App cannot continue.")
+    # vector_store = get_or_create_vector_store(config)
+    # if vector_store is None:
+    #     st.error("Failed to load or build the vector store. App cannot continue.")
+    #     st.stop()
+    
+    # retriever = vector_store.as_retriever(search_kwargs={"k": 7})
+    # print("Retriever created successfully.")
+    
+    vector_store_path = os.path.join(PROJECT_ROOT, config['data']['vector_store_path'])
+    if not os.path.exists(vector_store_path):
+        # If the store doesn't exist, the app cannot run.
+        st.error("Knowledge base not found! Please run the build process first.")
         st.stop()
+
+    print("Vector store found. Loading from disk...")
+    embeddings = GoogleGenerativeAIEmbeddings(model=config['gemini']['embedding_model'], google_api_key=config['gemini']['api_key'])
+    vector_store = FAISS.load_local(
+        vector_store_path, 
+        embeddings,
+        allow_dangerous_deserialization=True
+    )
+    print("Vector store loaded successfully.")
     
     retriever = vector_store.as_retriever(search_kwargs={"k": 7})
     print("Retriever created successfully.")

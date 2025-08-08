@@ -1,0 +1,31 @@
+# gemini:
+#   api_key: "AIzaSyDnlZ4tLCQRwK73vi0MLKhBsg2_grYP9f8"
+#   embedding_model: "models/embedding-001"
+#   llm_model: "gemini-pro"
+# # config/settings.yaml
+
+gemini:
+
+  api_key: st.secrets["API_KEY"]
+  
+  # Use this exact name for the embedding model
+  embedding_model: "models/embedding-001"
+  
+  # Use this exact name for the generative LLM
+  llm_model: "models/gemini-1.5-flash-latest"
+
+
+data:
+  pdf_path: "data/pdf"
+  excel_path: "data/excelfile.xlsx"
+  vector_store_path: "vector_store/faiss_index"
+
+# New section for the ingestion pipeline
+ingestion:
+  parsing_strategy: "fast" # Options: "hi_res", "fast", "ocr_only"
+  process_images: true 
+
+
+
+
+  # api_key: "AIzaSyDnlZ4tLCQRwK73vi0MLKhBsg2_grYP9f8"
