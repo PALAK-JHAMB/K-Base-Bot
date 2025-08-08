@@ -6,16 +6,15 @@ import sys
 import os
 from thefuzz import process
 
-# --- System Path Setup (CRITICAL FOR MODULAR IMPORTS) ---
+# --- System Path Setup ---
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
 sys.path.append(PROJECT_ROOT)
 
-# --- Now that the path is set, we can do our backend imports ---
+# --- Backend Imports ---
 from src.ingestion.excel_parser import parse_excel_qa
 from src.bot_engine.gemini_responder import get_rag_chain
-from src.vector_store.vector_builder import build_vector_store
-from langchain_google_genai import GoogleGenerativeAIEmbeddings
-from langchain_community.vectorstores import FAISS
+# We now only need this one function for the vector store
+from src.vector_store.vector_builder import get_or_create_vector_store
 
 # --- Page Configuration ---
 st.set_page_config(page_title="Document & FAQ Chatbot", layout="wide")
@@ -26,7 +25,7 @@ st.write("Ask a question about your documents, or check our FAQs!")
 @st.cache_resource
 def load_all_resources():
     """
-    Loads all necessary resources, handling config, secrets, and building/loading the vector store.
+    Loads all necessary resources using the robust get_or_create_vector_store function.
     """
     print("\n--- INITIATING RESOURCE LOADING ---")
 
@@ -58,34 +57,11 @@ def load_all_resources():
                 }
             }
         else:
-            st.error("API Key not found in Streamlit secrets. Please add it to your app's secrets.")
+            st.error("API Key not found in Streamlit secrets.")
             st.stop()
 
-    # --- 2. Load or Build the Vector Store ---
-    vector_store = None
-    vector_store_path = os.path.join(PROJECT_ROOT, config['data']['vector_store_path'])
-    
-    if os.path.exists(vector_store_path):
-        print("Vector store found. Loading from disk...")
-        embeddings = GoogleGenerativeAIEmbeddings(model=config['gemini']['embedding_model'], google_api_key=config['gemini']['api_key'])
-        vector_store = FAISS.load_local(
-            vector_store_path, 
-            embeddings,
-            allow_dangerous_deserialization=True
-        )
-        print("Vector store loaded successfully.")
-    else:
-        st.info("Vector store not found. Building it now. This may take a few minutes...")
-        build_vector_store(config)
-        # After building, we need to load it
-        embeddings = GoogleGenerativeAIEmbeddings(model=config['gemini']['embedding_model'], google_api_key=config['gemini']['api_key'])
-        vector_store = FAISS.load_local(
-            vector_store_path, 
-            embeddings,
-            allow_dangerous_deserialization=True
-        )
-        print("Newly built vector store loaded successfully.")
-
+    # --- 2. Load or Build the Vector Store and Create Retriever ---
+    vector_store = get_or_create_vector_store(config)
     if vector_store is None:
         st.error("Failed to load or build the vector store. App cannot continue.")
         st.stop()
@@ -121,7 +97,7 @@ def load_all_resources():
 # --- Load all resources and assign them to variables ---
 faq_data, retriever, rag_chain = load_all_resources()
 
-# --- Chat Logic ---
+# --- [The rest of your app.py (Chat Logic, UI State, Main Interaction) is correct and can remain the same] ---
 def get_faq_answer(query: str, faqs: list[dict]) -> str or None:
     if not faqs: return None
     faq_questions = [item['user_desc'] for item in faqs]
@@ -135,16 +111,13 @@ def get_faq_answer(query: str, faqs: list[dict]) -> str or None:
                 return item['user_reply_desc']
     return None
 
-# --- UI State Management ---
 if 'messages' not in st.session_state:
     st.session_state.messages = [{"role": "assistant", "content": "How can I help you today?"}]
 
-# Display chat messages from history
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
 
-# --- Main Interaction Logic ---
 if prompt := st.chat_input("Ask your question..."):
     st.session_state.messages.append({"role": "user", "content": prompt})
     with st.chat_message("user"):
