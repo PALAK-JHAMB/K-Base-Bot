@@ -172,25 +172,60 @@ def get_rag_chain(retriever):
     )
 
     # --- 4. Construct the full Map-Reduce flow with LCEL ---
-    def prepare_map_inputs(inputs: dict):
-        time.sleep(1.5)
-        return [{"document_content": doc.page_content, "question": inputs["question"]} for doc in inputs["documents"]]
+    # def prepare_map_inputs(inputs: dict):
+    #     time.sleep(1.5)
+    #     return [{"document_content": doc.page_content, "question": inputs["question"]} for doc in inputs["documents"]]
+
+    # full_chain = (
+    #     RunnablePassthrough.assign(
+    #         documents=itemgetter("question") | retriever
+    #     )
+    #     | RunnablePassthrough.assign(
+    #         map_inputs=RunnableLambda(prepare_map_inputs)
+    #     )
+    #     | RunnablePassthrough.assign(
+    #         context=itemgetter("map_inputs") | map_chain.map() | (lambda mapped_results: "\n\n---\n\n".join(mapped_results))
+    #     )
+    #     | reduce_prompt
+    #     | llm
+    #     | StrOutputParser()
+    # )
+
+    # final_chain = {"question": RunnablePassthrough()} | full_chain
+    
+    # return final_chain
+    
+     def format_docs_with_sources(docs):
+        # This helper function creates both the context and a clean sources list
+        context = "\n\n---\n\n".join([d.page_content for d in docs])
+        sources = set()
+        for doc in docs:
+            source = doc.metadata.get("source", "Unknown")
+            page = doc.metadata.get("page", "N/A")
+            sources.add(f"{source} (Page: {page})")
+        sources_str = "\n* ".join(sorted(list(sources)))
+        return {"context": context, "sources": sources_str}
 
     full_chain = (
         RunnablePassthrough.assign(
-            documents=itemgetter("question") | retriever
+            # Retrieve documents and format them into context and sources
+            retrieved_info=itemgetter("question") | retriever | RunnableLambda(format_docs_with_sources)
         )
+        # Unpack the context and sources from the retrieved_info dictionary
         | RunnablePassthrough.assign(
-            map_inputs=RunnableLambda(prepare_map_inputs)
+            context=itemgetter("retrieved_info") | itemgetter("context"),
+            sources=itemgetter("retrieved_info") | itemgetter("sources")
         )
-        | RunnablePassthrough.assign(
-            context=itemgetter("map_inputs") | map_chain.map() | (lambda mapped_results: "\n\n---\n\n".join(mapped_results))
-        )
-        | reduce_prompt
-        | llm
-        | StrOutputParser()
+        | {
+            "answer": reduce_prompt | llm | StrOutputParser(),
+            "sources": itemgetter("sources") # Pass the sources through to the final output
+          }
     )
 
-    final_chain = {"question": RunnablePassthrough()} | full_chain
+    # Final wrapper to handle input and format the final output string
+    def format_final_output(result: dict):
+        return f"{result['answer']}\n\n**Sources:**\n* {result['sources']}"
+
+    final_chain = {"question": RunnablePassthrough()} | full_chain | RunnableLambda(format_final_output)
     
     return final_chain
