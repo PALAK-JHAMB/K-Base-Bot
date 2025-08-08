@@ -6,7 +6,8 @@
 
 gemini:
 
-  api_key: st.secrets["API_KEY"]
+  # api_key: st.secrets["API_KEY"]
+  api_key="AIzaSyDrI-23BV5O5ytJ-UOgz-GJtIr836eOo_s"
   
   # Use this exact name for the embedding model
   embedding_model: "models/embedding-001"
