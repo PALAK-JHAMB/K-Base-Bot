@@ -24,11 +24,89 @@ st.title("IRCTC Chatbot: Ask all your queries")
 st.subheader("CENTER FOR RAILWAY INFORMATION SYSTEMS")
 st.write("Ask a question about your documents, or check our FAQs!")
 
+# @st.cache_resource
+# def load_all_resources():
+#     """
+#     Loads all necessary resources using absolute paths for deployment compatibility.
+#     Builds the vector store on the first boot if it doesn't exist.
+#     """
+#     print("\n--- INITIATING RESOURCE LOADING ---")
+
+#     # --- Load Config (Hybrid Approach) ---
+#     config = {}
+#     settings_path = os.path.join(PROJECT_ROOT, "config", "settings.yaml")
+#     try:
+#         with open(settings_path, 'r') as f:
+#             config = yaml.safe_load(f)
+#         print("1. Loaded config from local 'settings.yaml' file.")
+#         if "API_KEY" in st.secrets:
+#             config['gemini']['api_key'] = st.secrets["API_KEY"]
+#     except FileNotFoundError:
+#         print("1. 'settings.yaml' not found. Loading config from Streamlit secrets.")
+#         if "API_KEY" in st.secrets:
+#             config = {
+#                 "gemini": {
+#                     "api_key": st.secrets["API_KEY"],
+#                     "embedding_model": "models/embedding-001",
+#                     "llm_model": "models/gemini-1.5-flash-latest"
+#                 },
+#                 "data": {
+#                     "pdf_path": "data/pdf", # Corrected path
+#                     "excel_path": "data/excelfile.xlsx",
+#                     "vector_store_path": "vector_store/faiss_index"
+#                 },
+#                 "ingestion": {
+#                     "parsing_strategy": "fast" # Use 'fast' for deployment
+#                 }
+#             }
+#         else:
+#             st.error("API Key not found in Streamlit secrets. Please add it to your app's secrets.")
+#             st.stop()
+
+#     # --- Build Vector Store if it doesn't exist (using absolute path) ---
+#     vector_store_path = os.path.join(PROJECT_ROOT, config['data']['vector_store_path'])
+#     if not os.path.exists(vector_store_path):
+#         st.info("Vector store not found. Building it now. This may take a few minutes...")
+#         print("Vector store not found. Triggering build process...")
+#         build_vector_store()
+#         print("Vector store built successfully.")
+    
+#     # --- Load all resources ---
+#     faq_data, retriever, rag_chain = None, None, None
+    
+#     try:
+#         excel_path = os.path.join(PROJECT_ROOT, config['data']['excel_path'])
+#         faq_data = parse_excel_qa(excel_path)
+#         print(f"2. FAQ Data Loaded: {'SUCCESS' if faq_data is not None else 'FAILED'}")
+#     except Exception as e:
+#         print(f"2. FAQ Data Loaded: FAILED with an exception: {e}")
+
+#     try:
+#         retriever = get_retriever()
+#         print(f"3. Retriever Loaded: {'SUCCESS' if retriever is not None else 'FAILED'}")
+#     except Exception as e:
+#         print(f"3. Retriever Loaded: FAILED with an exception: {e}")
+
+#     try:
+#         rag_chain = get_rag_chain(retriever)
+#         print(f"4. RAG Chain Loaded: {'SUCCESS' if rag_chain is not None else 'FAILED'}")
+#     except Exception as e:
+#         print(f"4. RAG Chain Loaded: FAILED with an exception: {e}")
+    
+#     # --- Final Check ---
+#     if faq_data is None or retriever is None or rag_chain is None:
+#         st.error("Failed to load one or more resources. Please check terminal logs for details.")
+#         st.stop()
+        
+#     print("--- ALL RESOURCES LOADED SUCCESSFULLY ---\n")
+#     return faq_data, retriever, rag_chain
+
+# In src/ui/app.py
+
 @st.cache_resource
 def load_all_resources():
     """
-    Loads all necessary resources using absolute paths for deployment compatibility.
-    Builds the vector store on the first boot if it doesn't exist.
+    Loads all necessary resources and passes the config to the builder function.
     """
     print("\n--- INITIATING RESOURCE LOADING ---")
 
@@ -51,25 +129,24 @@ def load_all_resources():
                     "llm_model": "models/gemini-1.5-flash-latest"
                 },
                 "data": {
-                    "pdf_path": "data/pdf", # Corrected path
+                    "pdf_path": "data/pdf",
                     "excel_path": "data/excelfile.xlsx",
                     "vector_store_path": "vector_store/faiss_index"
                 },
                 "ingestion": {
-                    "parsing_strategy": "fast" # Use 'fast' for deployment
+                    "parsing_strategy": "fast"
                 }
             }
         else:
-            st.error("API Key not found in Streamlit secrets. Please add it to your app's secrets.")
+            st.error("API Key not found in Streamlit secrets.")
             st.stop()
 
-    # --- Build Vector Store if it doesn't exist (using absolute path) ---
+    # --- Build Vector Store if it doesn't exist ---
     vector_store_path = os.path.join(PROJECT_ROOT, config['data']['vector_store_path'])
     if not os.path.exists(vector_store_path):
         st.info("Vector store not found. Building it now. This may take a few minutes...")
-        print("Vector store not found. Triggering build process...")
-        build_vector_store()
-        print("Vector store built successfully.")
+        # --- PASS THE CONFIG DICTIONARY TO THE BUILDER ---
+        build_vector_store(config)
     
     # --- Load all resources ---
     faq_data, retriever, rag_chain = None, None, None
@@ -100,7 +177,6 @@ def load_all_resources():
         
     print("--- ALL RESOURCES LOADED SUCCESSFULLY ---\n")
     return faq_data, retriever, rag_chain
-
 # --- Load all resources and assign them to variables ---
 faq_data, retriever, rag_chain = load_all_resources()
 

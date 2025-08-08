@@ -165,79 +165,140 @@
 
 # src/vector_store/vector_builder.py
 
+# import sys
+# import os
+# import yaml
+# from langchain.text_splitter import RecursiveCharacterTextSplitter
+# from langchain_google_genai import GoogleGenerativeAIEmbeddings
+# from langchain_community.vectorstores import FAISS
+# import streamlit as st
+
+# # --- DEFINE PROJECT ROOT for reliable file paths ---
+# PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+
+# sys.path.append(PROJECT_ROOT)
+# from src.ingestion.pdf_loader import load_and_process_pdfs
+
+
+# def load_or_build_vector_store():
+#     """
+#     Checks if the vector store exists. If so, loads it. 
+#     If not, builds it, saves it, and returns the store object.
+#     This is a robust function for both local and cloud environments.
+#     """
+#     # --- 1. Load Config (Hybrid Approach) ---
+#     # This logic is now self-contained here
+#     config = {}
+#     settings_path = os.path.join(PROJECT_ROOT, "config", "settings.yaml")
+#     try:
+#         with open(settings_path, 'r') as f:
+#             config = yaml.safe_load(f)
+#         if "API_KEY" in st.secrets:
+#             config['gemini']['api_key'] = st.secrets["API_KEY"]
+#     except FileNotFoundError:
+#         if "API_KEY" in st.secrets:
+#             config = {
+#                 "gemini": {"api_key": st.secrets["API_KEY"], "embedding_model": "models/embedding-001"},
+#                 "data": {"pdf_path": "data/pdf", "vector_store_path": "vector_store/faiss_index"},
+#                 "ingestion": {"parsing_strategy": "fast"}
+#             }
+#         else:
+#             raise ValueError("API Key not found in Streamlit secrets.")
+
+#     vector_store_path = os.path.join(PROJECT_ROOT, config['data']['vector_store_path'])
+#     api_key = config['gemini']['api_key']
+    
+#     # --- 2. Check if store exists, and load it ---
+#     if os.path.exists(vector_store_path):
+#         print("Vector store found. Loading from disk...")
+#         embeddings = GoogleGenerativeAIEmbeddings(model=config['gemini']['embedding_model'], google_api_key=api_key)
+#         vector_store = FAISS.load_local(
+#             vector_store_path, 
+#             embeddings,
+#             allow_dangerous_deserialization=True
+#         )
+#         print("Vector store loaded successfully.")
+#         return vector_store
+
+#     # --- 3. If it doesn't exist, build it ---
+#     else:
+#         st.info("Vector store not found. Building it now. This may take a few minutes...")
+#         print("Vector store not found. Triggering build process...")
+        
+#         pdf_path = os.path.join(PROJECT_ROOT, config['data']['pdf_path'])
+#         documents = load_and_process_pdfs(pdf_path, config)
+#         if not documents:
+#             st.error("No documents were loaded to build the vector store. Check the data/pdf path.")
+#             return None
+
+#         text_splitter = RecursiveCharacterTextSplitter(chunk_size=2000, chunk_overlap=300)
+#         docs = text_splitter.split_documents(documents)
+        
+#         embeddings = GoogleGenerativeAIEmbeddings(model=config['gemini']['embedding_model'], google_api_key=api_key)
+        
+#         print("Building and saving FAISS vector store...")
+#         vector_store = FAISS.from_documents(docs, embeddings)
+#         vector_store.save_local(vector_store_path)
+#         print(f"Vector store built and saved successfully at {vector_store_path}")
+#         return vector_store
+# src/vector_store/vector_builder.py
+
 import sys
 import os
 import yaml
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_google_genai import GoogleGenerativeAIEmbeddings
 from langchain_community.vectorstores import FAISS
-import streamlit as st
 
-# --- DEFINE PROJECT ROOT for reliable file paths ---
+# --- System Path Setup ---
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
-
 sys.path.append(PROJECT_ROOT)
+
+# --- Now import from your src module ---
 from src.ingestion.pdf_loader import load_and_process_pdfs
 
-
-def load_or_build_vector_store():
+def build_vector_store(config: dict):
     """
-    Checks if the vector store exists. If so, loads it. 
-    If not, builds it, saves it, and returns the store object.
-    This is a robust function for both local and cloud environments.
+    Builds and saves the vector store.
+    It now receives the configuration as a parameter and is independent of Streamlit.
     """
-    # --- 1. Load Config (Hybrid Approach) ---
-    # This logic is now self-contained here
-    config = {}
-    settings_path = os.path.join(PROJECT_ROOT, "config", "settings.yaml")
-    try:
-        with open(settings_path, 'r') as f:
-            config = yaml.safe_load(f)
-        if "API_KEY" in st.secrets:
-            config['gemini']['api_key'] = st.secrets["API_KEY"]
-    except FileNotFoundError:
-        if "API_KEY" in st.secrets:
-            config = {
-                "gemini": {"api_key": st.secrets["API_KEY"], "embedding_model": "models/embedding-001"},
-                "data": {"pdf_path": "data/pdf", "vector_store_path": "vector_store/faiss_index"},
-                "ingestion": {"parsing_strategy": "fast"}
-            }
-        else:
-            raise ValueError("API Key not found in Streamlit secrets.")
-
-    vector_store_path = os.path.join(PROJECT_ROOT, config['data']['vector_store_path'])
+    print("Builder: Starting the vector store build process...")
+    
+    # --- 1. Get config from the passed-in dictionary ---
     api_key = config['gemini']['api_key']
     
-    # --- 2. Check if store exists, and load it ---
-    if os.path.exists(vector_store_path):
-        print("Vector store found. Loading from disk...")
-        embeddings = GoogleGenerativeAIEmbeddings(model=config['gemini']['embedding_model'], google_api_key=api_key)
-        vector_store = FAISS.load_local(
-            vector_store_path, 
-            embeddings,
-            allow_dangerous_deserialization=True
-        )
-        print("Vector store loaded successfully.")
-        return vector_store
+    # --- Use absolute paths for data and vector store ---
+    pdf_path = os.path.join(PROJECT_ROOT, config['data']['pdf_path'])
+    vector_store_path = os.path.join(PROJECT_ROOT, config['data']['vector_store_path'])
 
-    # --- 3. If it doesn't exist, build it ---
-    else:
-        st.info("Vector store not found. Building it now. This may take a few minutes...")
-        print("Vector store not found. Triggering build process...")
-        
-        pdf_path = os.path.join(PROJECT_ROOT, config['data']['pdf_path'])
-        documents = load_and_process_pdfs(pdf_path, config)
-        if not documents:
-            st.error("No documents were loaded to build the vector store. Check the data/pdf path.")
-            return None
+    # 2. Load PDF documents
+    print(f"Builder: Loading PDFs from {pdf_path}...")
+    documents = load_and_process_pdfs(pdf_path, config)
+    if not documents:
+        print("Builder: No documents were loaded. Exiting.")
+        return
 
-        text_splitter = RecursiveCharacterTextSplitter(chunk_size=2000, chunk_overlap=300)
-        docs = text_splitter.split_documents(documents)
-        
-        embeddings = GoogleGenerativeAIEmbeddings(model=config['gemini']['embedding_model'], google_api_key=api_key)
-        
-        print("Building and saving FAISS vector store...")
-        vector_store = FAISS.from_documents(docs, embeddings)
-        vector_store.save_local(vector_store_path)
-        print(f"Vector store built and saved successfully at {vector_store_path}")
-        return vector_store
+    # 3. Chunk the documents
+    print(f"Builder: Chunking {len(documents)} documents...")
+    text_splitter = RecursiveCharacterTextSplitter(
+        chunk_size=2000, 
+        chunk_overlap=300
+    )
+    docs = text_splitter.split_documents(documents)
+    print(f"Builder: Created {len(docs)} chunks.")
+
+    # 4. Create embeddings
+    print("Builder: Creating embeddings with Gemini...")
+    embeddings = GoogleGenerativeAIEmbeddings(model=config['gemini']['embedding_model'], google_api_key=api_key)
+
+    # 5. Build and save the vector store (FAISS)
+    print("Builder: Building and saving FAISS vector store...")
+    vector_store = FAISS.from_documents(docs, embeddings)
+    vector_store.save_local(vector_store_path)
+    print(f"Builder: Vector store created successfully at {vector_store_path}")
+
+# This block allows you to still run this script directly from the command line for local building
+if __name__ == '__main__':
+    with open(os.path.join(PROJECT_ROOT, "config", "settings.yaml"), 'r') as f:
+        main_config = yaml.safe_load(f)
+    build_vector_store(main_config)
