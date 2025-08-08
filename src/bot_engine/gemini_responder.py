@@ -164,7 +164,8 @@ def get_rag_chain(retriever):
         **Final Instruction for ALL answers:**
         - Do not say "the provided text excerpts do not offer further details" or similar phrases.
         - Write the answer as if you are the definitive expert using only the provided context.
-        - After the main answer, skip two lines and add a "Sources:" section, citing the source and page number for the information used.
+        - add a "Sources:" section, citing the source and page number for the information used.
+        - "Source" must give exact range of page numbers from which manual they are picked with manual name.
 
         Begin:
         """
