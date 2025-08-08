@@ -116,7 +116,7 @@ def build_vector_store():
                     "embedding_model": "models/embedding-001"
                 },
                 "data": {
-                    "pdf_path": "data/manuals",
+                    "pdf_path": "data/pdf",
                     "vector_store_path": "vector_store/faiss_index"
                 },
                 "ingestion": {

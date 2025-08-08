@@ -54,7 +54,7 @@ def load_all_resources():
                     "llm_model": "models/gemini-1.5-flash-latest"
                 },
                 "data": {
-                    "pdf_path": "data/manuals",
+                    "pdf_path": "data/pdf",
                     "excel_path": "data/excelfile.xlsx",
                     "vector_store_path": "vector_store/faiss_index"
                 },
