@@ -17,7 +17,8 @@ from src.bot_engine.gemini_responder import get_rag_chain
 
 # --- Page Configuration ---
 st.set_page_config(page_title="Document & FAQ Chatbot", layout="wide")
-st.title("🤖 Document & FAQ Chatbot")
+st.title("IRCTC Chatbot: Ask all your queries")
+st.subtitle("CENTER FOR RAILWAY INFORMATION SYSTEMS")
 st.write("Ask a question about your documents, or check our FAQs!")
 
 # --- Load Resources (with caching) ---
@@ -33,14 +34,51 @@ def load_all_resources():
     faq_data, retriever, rag_chain = None, None, None
 
     # --- Load Config ---
+    # try:
+    #     with open("config/settings.yaml", 'r') as f:
+    #         config = yaml.safe_load(f)
+    #     print("1. Config 'settings.yaml' loaded successfully.")
+    # except Exception as e:
+    #     print(f"FATAL ERROR: Could not load config/settings.yaml. Error: {e}")
+    #     st.error(f"Could not load config/settings.yaml. Error: {e}")
+    #     st.stop()
+# In src/ui/app.py -> load_all_resources()
+
+    # --- Load Config (Hybrid Approach for Deployment) ---
     try:
+        # This will work locally
         with open("config/settings.yaml", 'r') as f:
             config = yaml.safe_load(f)
-        print("1. Config 'settings.yaml' loaded successfully.")
-    except Exception as e:
-        print(f"FATAL ERROR: Could not load config/settings.yaml. Error: {e}")
-        st.error(f"Could not load config/settings.yaml. Error: {e}")
-        st.stop()
+        print("1. Loaded config from local 'settings.yaml' file.")
+        
+        # Check if a Streamlit secret is available and use it
+        if "API_KEY" in st.secrets: # <--- CHANGED HERE
+            print("   Found Streamlit secret. Overwriting API key.")
+            # Ensure the nested dictionary structure exists before assigning
+            if 'gemini' not in config:
+                config['gemini'] = {}
+            config['gemini']['api_key'] = st.secrets["API_KEY"] # <--- CHANGED HERE
+
+    except FileNotFoundError:
+        # This will run when deployed on Streamlit Cloud
+        print("1. 'settings.yaml' not found. Loading config from Streamlit secrets.")
+        if "API_KEY" in st.secrets: # <--- CHANGED HERE
+            config = {
+                "gemini": {
+                    "api_key": st.secrets["API_KEY"], # <--- CHANGED HERE
+                    "embedding_model": "models/embedding-001",
+                    "llm_model": "models/gemini-1.5-flash-latest"
+                }
+                # Add other necessary config keys here if needed
+            }
+        else:
+            st.error("API Key not found in Streamlit secrets. Please add it to your app's secrets.")
+            st.stop()
+    
+    # Final check
+    if not config.get('gemini', {}).get('api_key'):
+        st.error("API key configuration failed. It's missing from both settings.yaml and Streamlit secrets.")
+        st.stop()    
         
     # --- Load FAQ Data ---
     try:

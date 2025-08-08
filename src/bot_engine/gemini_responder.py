@@ -120,6 +120,7 @@ from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.prompts import PromptTemplate
 from langchain_core.runnables import RunnableLambda, RunnablePassthrough
 from langchain_core.output_parsers import StrOutputParser
+import streamlit as st
 
 def get_rag_chain(retriever):
     """
@@ -127,17 +128,38 @@ def get_rag_chain(retriever):
     style flow with source citation capabilities.
     """
     # 1. Load config and initialize LLM
-    with open("config/settings.yaml", 'r') as f:
-        config = yaml.safe_load(f)
-    api_key = config['gemini']['api_key']
-    llm_model_name = config['gemini']['llm_model']
+    # with open("config/settings.yaml", 'r') as f:
+    #     config = yaml.safe_load(f)
+    # api_key = config['gemini']['api_key']
+    # llm_model_name = config['gemini']['llm_model']
     
-    llm = ChatGoogleGenerativeAI(
-        model=llm_model_name,
-        google_api_key=api_key,
-        temperature=0.1,
-        max_output_tokens=2048
-    )
+    # llm = ChatGoogleGenerativeAI(
+    #     model=llm_model_name,
+    #     google_api_key=api_key,
+    #     temperature=0.1,
+    #     max_output_tokens=2048
+    # )
+    try:
+        with open("config/settings.yaml", 'r') as f:
+            config = yaml.safe_load(f)
+        if "API_KEY" in st.secrets: # <--- CHANGED HERE
+            if 'gemini' not in config:
+                config['gemini'] = {}
+            config['gemini']['api_key'] = st.secrets["API_KEY"] # <--- CHANGED HERE
+    except FileNotFoundError:
+        if "API_KEY" in st.secrets: # <--- CHANGED HERE
+            config = {
+                "gemini": {
+                    "api_key": st.secrets["API_KEY"], # <--- CHANGED HERE
+                    "embedding_model": "models/embedding-001",
+                    "llm_model": "models/gemini-1.5-flash-latest"
+                }
+            }
+        else:
+            raise ValueError("API Key not found in Streamlit secrets.")
+            
+    api_key = config['gemini']['api_key']
+    llm_model_name = config['gemini']['llm_model']    
 
     # --- 2. Define the "Map" stage prompt ---
     # This prompt now also asks for the source of the information.
