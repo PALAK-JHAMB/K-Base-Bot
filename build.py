@@ -3,20 +3,18 @@ import sys
 import os
 import yaml
 
-# Add the project's root directory to the Python path
-sys.path.append(os.path.abspath(os.path.dirname(__file__)))
+# --- System Path Setup ---
+PROJECT_ROOT = os.path.abspath(os.path.dirname(__file__))
+sys.path.append(PROJECT_ROOT)
 
-# Now we can import our builder function
-from src.vector_store.vector_builder import create_knowledge_base # Using the renamed function
+# --- Import the correct function from the correct file ---
+from src.vector_store.vector_builder import build_vector_store
 
-print("--- Starting the knowledge base build process ---")
+print("--- Starting the one-time vector store build process ---")
 
 # Load the configuration from the local YAML file
-PROJECT_ROOT = os.path.abspath(os.path.dirname(__file__))
 settings_path = os.path.join(PROJECT_ROOT, "config", "settings.yaml")
 
-# This script requires a local settings.yaml and a real API key in it
-# because we cannot access st.secrets here.
 try:
     with open(settings_path, 'r') as f:
         config = yaml.safe_load(f)
@@ -28,5 +26,7 @@ if not config.get('gemini', {}).get('api_key'):
      print(f"ERROR: 'api_key' not found in {settings_path}. The build script requires it.")
      sys.exit(1)
 
-create_knowledge_base(config)
-print("--- Knowledge base build process complete. ---")
+# --- Execute the build ---
+build_vector_store(config)
+
+print("--- Vector store build process complete. You can now switch back to app.py ---")

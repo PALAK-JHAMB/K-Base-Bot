@@ -22,14 +22,104 @@ st.title("IRCTC Chatbot: Ask all your queries")
 st.subheader("CENTER FOR RAILWAY INFORMATION SYSTEMS")
 st.write("Ask a question about your documents, or check our FAQs!")
 
+# @st.cache_resource
+# def load_all_resources():
+#     """
+#     Loads all necessary resources using the robust get_or_create_vector_store function.
+#     """
+#     print("\n--- INITIATING RESOURCE LOADING ---")
+
+#     # --- 1. Load Config (Hybrid Approach) ---
+#     config = {}
+#     settings_path = os.path.join(PROJECT_ROOT, "config", "settings.yaml")
+#     try:
+#         with open(settings_path, 'r') as f:
+#             config = yaml.safe_load(f)
+#         print("1. Loaded config from local 'settings.yaml' file.")
+#         if "API_KEY" in st.secrets:
+#             config['gemini']['api_key'] = st.secrets["API_KEY"]
+#     except FileNotFoundError:
+#         print("1. 'settings.yaml' not found. Loading config from Streamlit secrets.")
+#         if "API_KEY" in st.secrets:
+#             config = {
+#                 "gemini": {
+#                     "api_key": st.secrets["API_KEY"],
+#                     "embedding_model": "models/embedding-001",
+#                     "llm_model": "models/gemini-1.5-flash-latest"
+#                 },
+#                 "data": {
+#                     "pdf_path": "data/pdf",
+#                     "excel_path": "data/excelfile.xlsx",
+#                     "vector_store_path": "vector_store/faiss_index"
+#                 },
+#                 "ingestion": {
+#                     "parsing_strategy": "fast"
+#                 }
+#             }
+#         else:
+#             st.error("API Key not found in Streamlit secrets.")
+#             st.stop()
+
+#     # --- 2. Load or Build the Vector Store and Create Retriever ---
+#     # vector_store = get_or_create_vector_store(config)
+#     # if vector_store is None:
+#     #     st.error("Failed to load or build the vector store. App cannot continue.")
+#     #     st.stop()
+    
+#     # retriever = vector_store.as_retriever(search_kwargs={"k": 7})
+#     # print("Retriever created successfully.")
+    
+#     vector_store_path = os.path.join(PROJECT_ROOT, config['data']['vector_store_path'])
+#     if not os.path.exists(vector_store_path):
+#         # If the store doesn't exist, the app cannot run.
+#         st.error("Knowledge base not found! Please run the build process first.")
+#         st.stop()
+
+#     print("Vector store found. Loading from disk...")
+#     embeddings = GoogleGenerativeAIEmbeddings(model=config['gemini']['embedding_model'], google_api_key=config['gemini']['api_key'])
+#     vector_store = FAISS.load_local(
+#         vector_store_path, 
+#         embeddings,
+#         allow_dangerous_deserialization=True
+#     )
+#     print("Vector store loaded successfully.")
+    
+#     retriever = vector_store.as_retriever(search_kwargs={"k": 7})
+#     print("Retriever created successfully.")
+
+#     # --- 3. Load other resources ---
+#     faq_data = None
+#     rag_chain = None
+
+#     try:
+#         excel_path = os.path.join(PROJECT_ROOT, config['data']['excel_path'])
+#         faq_data = parse_excel_qa(excel_path)
+#         print(f"FAQ Data Loaded: {'SUCCESS' if faq_data is not None else 'FAILED'}")
+#     except Exception as e:
+#         print(f"FAQ Data Loaded: FAILED with an exception: {e}")
+
+#     try:
+#         rag_chain = get_rag_chain(retriever)
+#         print(f"RAG Chain Loaded: {'SUCCESS' if rag_chain is not None else 'FAILED'}")
+#     except Exception as e:
+#         print(f"RAG Chain Loaded: FAILED with an exception: {e}")
+    
+#     # --- Final Check ---
+#     if faq_data is None or retriever is None or rag_chain is None:
+#         st.error("Failed to load one or more resources. Please check terminal logs for details.")
+#         st.stop()
+        
+#     print("--- ALL RESOURCES LOADED SUCCESSFULLY ---\n")
+#     return faq_data, retriever, rag_chain
 @st.cache_resource
 def load_all_resources():
     """
-    Loads all necessary resources using the robust get_or_create_vector_store function.
+    Loads all necessary resources, assuming the vector store has already been built.
+    This function is now fast and will not time out.
     """
-    print("\n--- INITIATING RESOURCE LOADING ---")
+    print("\n--- INITIATING FAST RESOURCE LOADING ---")
 
-    # --- 1. Load Config (Hybrid Approach) ---
+    # --- Load Config (Hybrid Approach) ---
     config = {}
     settings_path = os.path.join(PROJECT_ROOT, "config", "settings.yaml")
     try:
@@ -48,55 +138,29 @@ def load_all_resources():
                     "llm_model": "models/gemini-1.5-flash-latest"
                 },
                 "data": {
-                    "pdf_path": "data/pdf",
                     "excel_path": "data/excelfile.xlsx",
                     "vector_store_path": "vector_store/faiss_index"
-                },
-                "ingestion": {
-                    "parsing_strategy": "fast"
                 }
             }
         else:
             st.error("API Key not found in Streamlit secrets.")
             st.stop()
 
-    # --- 2. Load or Build the Vector Store and Create Retriever ---
-    # vector_store = get_or_create_vector_store(config)
-    # if vector_store is None:
-    #     st.error("Failed to load or build the vector store. App cannot continue.")
-    #     st.stop()
+    # --- Load all resources ---
+    faq_data, retriever, rag_chain = None, None, None
     
-    # retriever = vector_store.as_retriever(search_kwargs={"k": 7})
-    # print("Retriever created successfully.")
-    
-    vector_store_path = os.path.join(PROJECT_ROOT, config['data']['vector_store_path'])
-    if not os.path.exists(vector_store_path):
-        # If the store doesn't exist, the app cannot run.
-        st.error("Knowledge base not found! Please run the build process first.")
-        st.stop()
-
-    print("Vector store found. Loading from disk...")
-    embeddings = GoogleGenerativeAIEmbeddings(model=config['gemini']['embedding_model'], google_api_key=config['gemini']['api_key'])
-    vector_store = FAISS.load_local(
-        vector_store_path, 
-        embeddings,
-        allow_dangerous_deserialization=True
-    )
-    print("Vector store loaded successfully.")
-    
-    retriever = vector_store.as_retriever(search_kwargs={"k": 7})
-    print("Retriever created successfully.")
-
-    # --- 3. Load other resources ---
-    faq_data = None
-    rag_chain = None
-
     try:
         excel_path = os.path.join(PROJECT_ROOT, config['data']['excel_path'])
         faq_data = parse_excel_qa(excel_path)
         print(f"FAQ Data Loaded: {'SUCCESS' if faq_data is not None else 'FAILED'}")
     except Exception as e:
         print(f"FAQ Data Loaded: FAILED with an exception: {e}")
+
+    try:
+        retriever = get_retriever()
+        print(f"Retriever Loaded: {'SUCCESS' if retriever is not None else 'FAILED'}")
+    except Exception as e:
+        print(f"Retriever Loaded: FAILED with an exception: {e}")
 
     try:
         rag_chain = get_rag_chain(retriever)
@@ -112,6 +176,8 @@ def load_all_resources():
     print("--- ALL RESOURCES LOADED SUCCESSFULLY ---\n")
     return faq_data, retriever, rag_chain
 
+# --- Load all resources and assign them to variables ---
+faq_data, retriever, rag_chain = load_all_resources()
 # --- Load all resources and assign them to variables ---
 faq_data, retriever, rag_chain = load_all_resources()
 
