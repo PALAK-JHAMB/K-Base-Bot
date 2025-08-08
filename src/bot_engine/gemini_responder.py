@@ -195,7 +195,7 @@ def get_rag_chain(retriever):
     
     # return final_chain
     
-     def format_docs_with_sources(docs):
+    def format_docs_with_sources(docs):
         # This helper function creates both the context and a clean sources list
         context = "\n\n---\n\n".join([d.page_content for d in docs])
         sources = set()
@@ -228,4 +228,4 @@ def get_rag_chain(retriever):
 
     final_chain = {"question": RunnablePassthrough()} | full_chain | RunnableLambda(format_final_output)
     
-    return final_chain
+    return final_chain    
