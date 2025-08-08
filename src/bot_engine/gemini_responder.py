@@ -171,10 +171,9 @@ def get_rag_chain(retriever):
 
         **Final Formatting Instructions:**
         1.  Generate the comprehensive answer according to the rules above (numbered list for steps, bullet points for summaries).
-        2.  After the main answer, skip two lines.
-        3.  Add a "Sources:" section.
-        4.  Under "Sources:", list each unique source document and its corresponding page number(s) as a bullet point. For example: "* Document_Name.pdf (Page: 10, 12)".
-        5.  Do not make up sources or page numbers. Only use the ones provided in the context.
+        2.  Add a "Sources:" section.
+        3.  Under "Sources:", list each unique source document and its corresponding page number(s) as a bullet point. For example: "* Document_Name.pdf (Page: 10, 12)".
+        4.  Do not make up sources or page numbers. Only use the ones provided in the context.
         
         Begin:
         """

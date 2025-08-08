@@ -41,7 +41,7 @@ def get_retriever():
         
         log.info("Vector store loaded successfully.")
         # Return the vector store as a retriever
-        return vector_store.as_retriever(search_kwargs={"k": 6}) # Retrieve top 3 documents
+        return vector_store.as_retriever(search_kwargs={"k": 7}) # Retrieve top 3 documents
 
     except FileNotFoundError:
         log.error(f"Vector store not found at {vector_store_path}. Please run vector_builder.py first.")
