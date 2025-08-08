@@ -59,7 +59,7 @@ def load_all_resources():
                     "vector_store_path": "vector_store/faiss_index"
                 },
                 "ingestion": {
-                    "parsing_strategy": "hi_res"
+                    "parsing_strategy": "fast"
                 }
             }
         else:
