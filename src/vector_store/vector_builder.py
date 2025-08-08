@@ -260,7 +260,7 @@ from src.ingestion.pdf_loader import load_and_process_pdfs
 def build_vector_store(config: dict):
     """
     Builds and saves the vector store.
-    It now receives the configuration as a parameter and is independent of Streamlit.
+    It receives the configuration as a parameter and is independent of Streamlit.
     """
     print("Builder: Starting the vector store build process...")
     

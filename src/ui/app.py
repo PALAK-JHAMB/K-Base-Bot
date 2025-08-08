@@ -13,9 +13,9 @@ sys.path.append(PROJECT_ROOT)
 # --- Now that the path is set, we can do our backend imports ---
 from src.ingestion.excel_parser import parse_excel_qa
 from src.bot_engine.gemini_responder import get_rag_chain
-# --- FIX 1: Import the new, correct function name ---
-from src.vector_store.vector_builder import load_or_build_vector_store
-from src.vector_store.retriever import get_retriever
+from src.vector_store.vector_builder import build_vector_store
+from langchain_google_genai import GoogleGenerativeAIEmbeddings
+from langchain_community.vectorstores import FAISS
 
 # --- Page Configuration ---
 st.set_page_config(page_title="Document & FAQ Chatbot", layout="wide")
@@ -26,14 +26,66 @@ st.write("Ask a question about your documents, or check our FAQs!")
 @st.cache_resource
 def load_all_resources():
     """
-    Loads all necessary resources using the robust load_or_build_vector_store function.
+    Loads all necessary resources, handling config, secrets, and building/loading the vector store.
     """
     print("\n--- INITIATING RESOURCE LOADING ---")
 
-    # --- 1. Load or Build the Vector Store ---
-    # This single function now handles everything related to the vector store.
-    # --- FIX 2: Call the new, correct function name ---
-    vector_store = load_or_build_vector_store()
+    # --- 1. Load Config (Hybrid Approach) ---
+    config = {}
+    settings_path = os.path.join(PROJECT_ROOT, "config", "settings.yaml")
+    try:
+        with open(settings_path, 'r') as f:
+            config = yaml.safe_load(f)
+        print("1. Loaded config from local 'settings.yaml' file.")
+        if "API_KEY" in st.secrets:
+            config['gemini']['api_key'] = st.secrets["API_KEY"]
+    except FileNotFoundError:
+        print("1. 'settings.yaml' not found. Loading config from Streamlit secrets.")
+        if "API_KEY" in st.secrets:
+            config = {
+                "gemini": {
+                    "api_key": st.secrets["API_KEY"],
+                    "embedding_model": "models/embedding-001",
+                    "llm_model": "models/gemini-1.5-flash-latest"
+                },
+                "data": {
+                    "pdf_path": "data/pdf",
+                    "excel_path": "data/excelfile.xlsx",
+                    "vector_store_path": "vector_store/faiss_index"
+                },
+                "ingestion": {
+                    "parsing_strategy": "fast"
+                }
+            }
+        else:
+            st.error("API Key not found in Streamlit secrets. Please add it to your app's secrets.")
+            st.stop()
+
+    # --- 2. Load or Build the Vector Store ---
+    vector_store = None
+    vector_store_path = os.path.join(PROJECT_ROOT, config['data']['vector_store_path'])
+    
+    if os.path.exists(vector_store_path):
+        print("Vector store found. Loading from disk...")
+        embeddings = GoogleGenerativeAIEmbeddings(model=config['gemini']['embedding_model'], google_api_key=config['gemini']['api_key'])
+        vector_store = FAISS.load_local(
+            vector_store_path, 
+            embeddings,
+            allow_dangerous_deserialization=True
+        )
+        print("Vector store loaded successfully.")
+    else:
+        st.info("Vector store not found. Building it now. This may take a few minutes...")
+        build_vector_store(config)
+        # After building, we need to load it
+        embeddings = GoogleGenerativeAIEmbeddings(model=config['gemini']['embedding_model'], google_api_key=config['gemini']['api_key'])
+        vector_store = FAISS.load_local(
+            vector_store_path, 
+            embeddings,
+            allow_dangerous_deserialization=True
+        )
+        print("Newly built vector store loaded successfully.")
+
     if vector_store is None:
         st.error("Failed to load or build the vector store. App cannot continue.")
         st.stop()
@@ -41,17 +93,7 @@ def load_all_resources():
     retriever = vector_store.as_retriever(search_kwargs={"k": 7})
     print("Retriever created successfully.")
 
-    # --- 2. Load the rest of the resources ---
-    # We still need to load the config for the excel path
-    config = {}
-    settings_path = os.path.join(PROJECT_ROOT, "config", "settings.yaml")
-    try:
-        with open(settings_path, 'r') as f:
-            config = yaml.safe_load(f)
-    except FileNotFoundError:
-        # This is a simplified fallback just for the excel path
-        config = {"data": {"excel_path": "data/excelfile.xlsx"}}
-
+    # --- 3. Load other resources ---
     faq_data = None
     rag_chain = None
 
