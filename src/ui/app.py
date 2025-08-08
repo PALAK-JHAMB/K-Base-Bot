@@ -14,8 +14,9 @@ sys.path.append(PROJECT_ROOT)
 from src.ingestion.excel_parser import parse_excel_qa
 from src.bot_engine.gemini_responder import get_rag_chain
 # We now only need this one function for the vector store
-from src.vector_store.vector_builder import get_or_create_vector_store
+from src.vector_store.vector_builder import build_vector_store
 
+from src.vector_store.retriever import get_retriever
 # --- Page Configuration ---
 st.set_page_config(page_title="Document & FAQ Chatbot", layout="wide")
 st.title("IRCTC Chatbot: Ask all your queries")
@@ -138,15 +139,27 @@ def load_all_resources():
                     "llm_model": "models/gemini-1.5-flash-latest"
                 },
                 "data": {
+                    "pdf_path": "data/pdf",
                     "excel_path": "data/excelfile.xlsx",
                     "vector_store_path": "vector_store/faiss_index"
+                },
+                "ingestion": {
+                    "parsing_strategy": "fast"
                 }
             }
         else:
             st.error("API Key not found in Streamlit secrets.")
             st.stop()
 
-    # --- Load all resources ---
+    # --- 2. Build Vector Store if it doesn't exist ---
+    vector_store_path = os.path.join(PROJECT_ROOT, config['data']['vector_store_path'])
+    if not os.path.exists(vector_store_path):
+        st.info("Knowledge base not found. Building it now. This is a one-time process per session and may take several minutes...")
+        print("Knowledge base not found. Triggering build process...")
+        build_vector_store(config)
+        print("Knowledge base built successfully.")
+    
+    # --- 3. Load all resources ---
     faq_data, retriever, rag_chain = None, None, None
     
     try:
@@ -175,9 +188,62 @@ def load_all_resources():
         
     print("--- ALL RESOURCES LOADED SUCCESSFULLY ---\n")
     return faq_data, retriever, rag_chain
+    # settings_path = os.path.join(PROJECT_ROOT, "config", "settings.yaml")
+    # try:
+    #     with open(settings_path, 'r') as f:
+    #         config = yaml.safe_load(f)
+    #     print("1. Loaded config from local 'settings.yaml' file.")
+    #     if "API_KEY" in st.secrets:
+    #         config['gemini']['api_key'] = st.secrets["API_KEY"]
+    # except FileNotFoundError:
+    #     print("1. 'settings.yaml' not found. Loading config from Streamlit secrets.")
+    #     if "API_KEY" in st.secrets:
+    #         config = {
+    #             "gemini": {
+    #                 "api_key": st.secrets["API_KEY"],
+    #                 "embedding_model": "models/embedding-001",
+    #                 "llm_model": "models/gemini-1.5-flash-latest"
+    #             },
+    #             "data": {
+    #                 "excel_path": "data/excelfile.xlsx",
+    #                 "vector_store_path": "vector_store/faiss_index"
+    #             }
+    #         }
+    #     else:
+    #         st.error("API Key not found in Streamlit secrets.")
+    #         st.stop()
 
-# --- Load all resources and assign them to variables ---
-faq_data, retriever, rag_chain = load_all_resources()
+    # # --- Load all resources ---
+    # faq_data, retriever, rag_chain = None, None, None
+    
+    # try:
+    #     excel_path = os.path.join(PROJECT_ROOT, config['data']['excel_path'])
+    #     faq_data = parse_excel_qa(excel_path)
+    #     print(f"FAQ Data Loaded: {'SUCCESS' if faq_data is not None else 'FAILED'}")
+    # except Exception as e:
+    #     print(f"FAQ Data Loaded: FAILED with an exception: {e}")
+
+    # try:
+    #     retriever = get_retriever()
+    #     print(f"Retriever Loaded: {'SUCCESS' if retriever is not None else 'FAILED'}")
+    # except Exception as e:
+    #     print(f"Retriever Loaded: FAILED with an exception: {e}")
+
+    # try:
+    #     rag_chain = get_rag_chain(retriever)
+    #     print(f"RAG Chain Loaded: {'SUCCESS' if rag_chain is not None else 'FAILED'}")
+    # except Exception as e:
+    #     print(f"RAG Chain Loaded: FAILED with an exception: {e}")
+    
+    # # --- Final Check ---
+    # if faq_data is None or retriever is None or rag_chain is None:
+    #     st.error("Failed to load one or more resources. Please check terminal logs for details.")
+    #     st.stop()
+        
+    # print("--- ALL RESOURCES LOADED SUCCESSFULLY ---\n")
+    # return faq_data, retriever, rag_chain
+
+
 # --- Load all resources and assign them to variables ---
 faq_data, retriever, rag_chain = load_all_resources()
 
