@@ -8,7 +8,7 @@
 
 gemini:
   # Paste your real API key here for local testing.
-  api_key: "YAIzaSyDrI-23BV5O5ytJ-UOgz-GJtIr836eOo_s"
+  api_key: "AIzaSyDrI-23BV5O5ytJ-UOgz-GJtIr836eOo_s"
   
   
   # These are the standard model names.
