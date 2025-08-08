@@ -5,6 +5,7 @@ import yaml
 import sys
 import os
 from thefuzz import process
+from src.vector_store.vector_builder import load_or_build_vector_store
 
 # --- DEFINE PROJECT ROOT ---
 # This makes file paths work consistently in local and deployed environments
@@ -26,75 +27,49 @@ st.title("IRCTC Chatbot: Ask all your queries")
 st.subheader("CENTER FOR RAILWAY INFORMATION SYSTEMS")
 st.write("Ask a question about your documents, or check our FAQs!")
 
+
 @st.cache_resource
 def load_all_resources():
     """
-    Loads all necessary resources using absolute paths for deployment compatibility.
-    Builds the vector store on the first boot if it doesn't exist.
+    Loads all necessary resources using the robust load_or_build_vector_store function.
     """
     print("\n--- INITIATING RESOURCE LOADING ---")
 
-    # --- Load Config (Hybrid Approach) ---
+    # --- 1. Load or Build the Vector Store ---
+    # This single function now handles everything related to the vector store.
+    vector_store = load_or_build_vector_store()
+    if vector_store is None:
+        st.error("Failed to load or build the vector store. App cannot continue.")
+        st.stop()
+    
+    retriever = vector_store.as_retriever(search_kwargs={"k": 7})
+    print("Retriever created successfully.")
+
+    # --- 2. Load the rest of the resources ---
+    # We still need to load the config for the excel path
     config = {}
     settings_path = os.path.join(PROJECT_ROOT, "config", "settings.yaml")
     try:
         with open(settings_path, 'r') as f:
             config = yaml.safe_load(f)
-        print("1. Loaded config from local 'settings.yaml' file.")
-        if "API_KEY" in st.secrets:
-            config['gemini']['api_key'] = st.secrets["API_KEY"]
     except FileNotFoundError:
-        print("1. 'settings.yaml' not found. Loading config from Streamlit secrets.")
-        if "API_KEY" in st.secrets:
-            # When deployed, we must construct the full config from secrets and hardcoded paths
-            config = {
-                "gemini": {
-                    "api_key": st.secrets["API_KEY"],
-                    "embedding_model": "models/embedding-001",
-                    "llm_model": "models/gemini-1.5-flash-latest"
-                },
-                "data": {
-                    "pdf_path": "data/pdf",
-                    "excel_path": "data/excelfile.xlsx",
-                    "vector_store_path": "vector_store/faiss_index"
-                },
-                "ingestion": {
-                    "parsing_strategy": "fast"
-                }
-            }
-        else:
-            st.error("API Key not found in Streamlit secrets. Please add it to your app's secrets.")
-            st.stop()
+        config = {"data": {"excel_path": "data/excelfile.xlsx"}}
 
-    # --- Build Vector Store if it doesn't exist (using absolute path) ---
-    vector_store_path = os.path.join(PROJECT_ROOT, config['data']['vector_store_path'])
-    if not os.path.exists(vector_store_path):
-        st.info("Vector store not found. Building it now. This may take a few minutes on first startup...")
-        print("Vector store not found. Triggering build process...")
-        build_vector_store()
-        print("Vector store built successfully.")
-    
-    # --- Load all resources ---
-    faq_data, retriever, rag_chain = None, None, None
-    
+    faq_data = None
+    rag_chain = None
+
     try:
         excel_path = os.path.join(PROJECT_ROOT, config['data']['excel_path'])
         faq_data = parse_excel_qa(excel_path)
-        print(f"2. FAQ Data Loaded: {'SUCCESS' if faq_data is not None else 'FAILED'}")
+        print(f"FAQ Data Loaded: {'SUCCESS' if faq_data is not None else 'FAILED'}")
     except Exception as e:
-        print(f"2. FAQ Data Loaded: FAILED with an exception: {e}")
-
-    try:
-        retriever = get_retriever()
-        print(f"3. Retriever Loaded: {'SUCCESS' if retriever is not None else 'FAILED'}")
-    except Exception as e:
-        print(f"3. Retriever Loaded: FAILED with an exception: {e}")
+        print(f"FAQ Data Loaded: FAILED with an exception: {e}")
 
     try:
         rag_chain = get_rag_chain(retriever)
-        print(f"4. RAG Chain Loaded: {'SUCCESS' if rag_chain is not None else 'FAILED'}")
+        print(f"RAG Chain Loaded: {'SUCCESS' if rag_chain is not None else 'FAILED'}")
     except Exception as e:
-        print(f"4. RAG Chain Loaded: FAILED with an exception: {e}")
+        print(f"RAG Chain Loaded: FAILED with an exception: {e}")
     
     # --- Final Check ---
     if faq_data is None or retriever is None or rag_chain is None:
@@ -104,8 +79,86 @@ def load_all_resources():
     print("--- ALL RESOURCES LOADED SUCCESSFULLY ---\n")
     return faq_data, retriever, rag_chain
 
-# --- Load all resources and assign them to variables ---
-faq_data, retriever, rag_chain = load_all_resources()
+# @st.cache_resource
+# def load_all_resources():
+#     """
+#     Loads all necessary resources using absolute paths for deployment compatibility.
+#     Builds the vector store on the first boot if it doesn't exist.
+#     """
+#     print("\n--- INITIATING RESOURCE LOADING ---")
+
+#     # --- Load Config (Hybrid Approach) ---
+#     config = {}
+#     settings_path = os.path.join(PROJECT_ROOT, "config", "settings.yaml")
+#     try:
+#         with open(settings_path, 'r') as f:
+#             config = yaml.safe_load(f)
+#         print("1. Loaded config from local 'settings.yaml' file.")
+#         if "API_KEY" in st.secrets:
+#             config['gemini']['api_key'] = st.secrets["API_KEY"]
+#     except FileNotFoundError:
+#         print("1. 'settings.yaml' not found. Loading config from Streamlit secrets.")
+#         if "API_KEY" in st.secrets:
+#             # When deployed, we must construct the full config from secrets and hardcoded paths
+#             config = {
+#                 "gemini": {
+#                     "api_key": st.secrets["API_KEY"],
+#                     "embedding_model": "models/embedding-001",
+#                     "llm_model": "models/gemini-1.5-flash-latest"
+#                 },
+#                 "data": {
+#                     "pdf_path": "data/pdf",
+#                     "excel_path": "data/excelfile.xlsx",
+#                     "vector_store_path": "vector_store/faiss_index"
+#                 },
+#                 "ingestion": {
+#                     "parsing_strategy": "fast"
+#                 }
+#             }
+#         else:
+#             st.error("API Key not found in Streamlit secrets. Please add it to your app's secrets.")
+#             st.stop()
+
+#     # --- Build Vector Store if it doesn't exist (using absolute path) ---
+#     vector_store_path = os.path.join(PROJECT_ROOT, config['data']['vector_store_path'])
+#     if not os.path.exists(vector_store_path):
+#         st.info("Vector store not found. Building it now. This may take a few minutes on first startup...")
+#         print("Vector store not found. Triggering build process...")
+#         build_vector_store()
+#         print("Vector store built successfully.")
+    
+#     # --- Load all resources ---
+#     faq_data, retriever, rag_chain = None, None, None
+    
+#     try:
+#         excel_path = os.path.join(PROJECT_ROOT, config['data']['excel_path'])
+#         faq_data = parse_excel_qa(excel_path)
+#         print(f"2. FAQ Data Loaded: {'SUCCESS' if faq_data is not None else 'FAILED'}")
+#     except Exception as e:
+#         print(f"2. FAQ Data Loaded: FAILED with an exception: {e}")
+
+#     try:
+#         retriever = get_retriever()
+#         print(f"3. Retriever Loaded: {'SUCCESS' if retriever is not None else 'FAILED'}")
+#     except Exception as e:
+#         print(f"3. Retriever Loaded: FAILED with an exception: {e}")
+
+#     try:
+#         rag_chain = get_rag_chain(retriever)
+#         print(f"4. RAG Chain Loaded: {'SUCCESS' if rag_chain is not None else 'FAILED'}")
+#     except Exception as e:
+#         print(f"4. RAG Chain Loaded: FAILED with an exception: {e}")
+    
+#     # --- Final Check ---
+#     if faq_data is None or retriever is None or rag_chain is None:
+#         st.error("Failed to load one or more resources. Please check terminal logs for details.")
+#         st.stop()
+        
+#     print("--- ALL RESOURCES LOADED SUCCESSFULLY ---\n")
+#     return faq_data, retriever, rag_chain
+
+# # --- Load all resources and assign them to variables ---
+# faq_data, retriever, rag_chain = load_all_resources()
 
 # --- Chat Logic ---
 def get_faq_answer(query: str, faqs: list[dict]) -> str or None:
