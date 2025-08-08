@@ -179,6 +179,7 @@ PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..
 sys.path.append(PROJECT_ROOT)
 from src.ingestion.pdf_loader import load_and_process_pdfs
 
+
 def load_or_build_vector_store():
     """
     Checks if the vector store exists. If so, loads it. 

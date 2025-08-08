@@ -5,21 +5,17 @@ import yaml
 import sys
 import os
 from thefuzz import process
-from src.vector_store.vector_builder import load_or_build_vector_store
 
-# --- DEFINE PROJECT ROOT ---
-# This makes file paths work consistently in local and deployed environments
+# --- System Path Setup (CRITICAL FOR MODULAR IMPORTS) ---
+# This must be the very first thing the script does
+# It adds the project's root directory to Python's search path
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
-
-# --- System Path Setup ---
-# This ensures that the app can find the other modules
 sys.path.append(PROJECT_ROOT)
 
-# --- Backend Imports ---
+# --- Now that the path is set, we can do our backend imports ---
 from src.ingestion.excel_parser import parse_excel_qa
-from src.vector_store.retriever import get_retriever
 from src.bot_engine.gemini_responder import get_rag_chain
-from src.vector_store.vector_builder import build_vector_store
+from src.vector_store.vector_builder import load_or_build_vector_store
 
 # --- Page Configuration ---
 st.set_page_config(page_title="Document & FAQ Chatbot", layout="wide")
