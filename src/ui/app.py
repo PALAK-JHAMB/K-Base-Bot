@@ -18,7 +18,7 @@ from src.bot_engine.gemini_responder import get_rag_chain
 # --- Page Configuration ---
 st.set_page_config(page_title="Document & FAQ Chatbot", layout="wide")
 st.title("IRCTC Chatbot: Ask all your queries")
-st.subtitle("CENTER FOR RAILWAY INFORMATION SYSTEMS")
+st.subheader("CENTER FOR RAILWAY INFORMATION SYSTEMS")
 st.write("Ask a question about your documents, or check our FAQs!")
 
 # --- Load Resources (with caching) ---
