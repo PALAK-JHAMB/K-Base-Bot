@@ -420,6 +420,9 @@ if prompt := st.chat_input("Ask your question..."):
             else:
                 st.info("No FAQ match found. Searching documents...")
                 response = rag_chain.invoke(prompt)
+                response = response.replace("<br><br>", "\n\n")
+            # Replace any single <br> with a single newline
+                response = response.replace("<br>", "\n")
             
             st.markdown(response)
             
