@@ -69,14 +69,14 @@
 
 # src/vector_store/vector_builder.py
 
+# src/vector_store/vector_builder.py
+
 import sys
 import os
-import yaml
 import time
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_google_genai import GoogleGenerativeAIEmbeddings
 from langchain_community.vectorstores import FAISS
-import streamlit as st
 
 # --- System Path Setup ---
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
@@ -86,8 +86,8 @@ from src.ingestion.pdf_loader import load_and_process_pdfs
 
 def build_vector_store(config: dict):
     """
-    Builds and saves the vector store with manual batching and delays
-    to respect API rate limits during the embedding process.
+    Builds and saves the vector store using a passed-in config dictionary.
+    Includes manual batching and delays to respect API rate limits.
     """
     print("Builder: Starting the vector store build process...")
     
@@ -104,60 +104,35 @@ def build_vector_store(config: dict):
     docs = text_splitter.split_documents(documents)
     print(f"Builder: Created {len(docs)} chunks.")
 
-    print("Builder: Creating embeddings with Gemini...")
     embeddings = GoogleGenerativeAIEmbeddings(model=config['gemini']['embedding_model'], google_api_key=api_key)
 
-    # --- MANUAL BATCHING AND EMBEDDING WITH DELAY ---
-    print("Builder: Starting embedding process in batches to respect rate limits...")
-    batch_size = 10  # Process 10 documents per API call
-    all_embeddings = []
+    print("Builder: Starting embedding process in batches...")
+    batch_size = 10
     all_texts = [doc.page_content for doc in docs]
     all_metadatas = [doc.metadata for doc in docs]
+    
+    vector_store = FAISS.from_texts(
+        texts=[" "], # Start with a dummy text
+        embedding=embeddings,
+        metadatas=[{"dummy": True}]
+    )
 
+    total_batches = (len(all_texts) - 1) // batch_size + 1
     for i in range(0, len(all_texts), batch_size):
         batch_texts = all_texts[i:i + batch_size]
-        print(f"  - Embedding batch {i//batch_size + 1}/{(len(all_texts) - 1)//batch_size + 1}...")
+        batch_metadatas = all_metadatas[i:i + batch_size]
+        current_batch_num = i//batch_size + 1
+        
+        progress_message = f"Embedding batch {current_batch_num}/{total_batches}..."
+        print(progress_message)
         
         try:
-            batch_embeddings = embeddings.embed_documents(batch_texts)
-            all_embeddings.extend(batch_embeddings)
-            print("  - Batch complete. Waiting for 2 seconds...")
-            time.sleep(2) # Wait for 2 seconds between each batch
+            vector_store.add_texts(texts=batch_texts, metadatas=batch_metadatas)
+            print("  - Batch complete. Waiting for 4 seconds...")
+            time.sleep(4) # Increased delay for more stability
         except Exception as e:
             print(f"  - ERROR embedding batch: {e}")
-            print("  - Skipping this batch and continuing...")
-            # Add placeholder embeddings for the failed batch to avoid length mismatch
-            all_embeddings.extend([None] * len(batch_texts))
 
-
-    # Filter out any failed embeddings before creating the index
-    valid_embeddings = []
-    valid_texts = []
-    valid_metadatas = []
-    for i, emb in enumerate(all_embeddings):
-        if emb is not None:
-            valid_embeddings.append(emb)
-            valid_texts.append(all_texts[i])
-            valid_metadatas.append(all_metadatas[i])
-
-    print(f"Builder: Successfully embedded {len(valid_embeddings)} out of {len(all_texts)} documents.")
-    
-    text_embedding_pairs = list(zip(valid_texts, valid_embeddings))
-
-    # --- Build FAISS from pre-computed embeddings ---
     print("Builder: Building FAISS index from embeddings...")
-    vector_store = FAISS.from_embeddings(
-        text_embeddings=text_embedding_pairs,
-        embedding=embeddings,
-        metadatas=valid_metadatas
-    )
-    
-    print("Builder: Saving FAISS index to disk...")
     vector_store.save_local(vector_store_path)
     print(f"Builder: Vector store created successfully at {vector_store_path}")
-
-# This block allows you to still run this script directly from the command line
-if __name__ == '__main__':
-    with open(os.path.join(PROJECT_ROOT, "config", "settings.yaml"), 'r') as f:
-        main_config = yaml.safe_load(f)
-    build_vector_store(main_config)
