@@ -1,17 +1,6 @@
-# gemini:
-#   api_key: "AIzaSyDnlZ4tLCQRwK73vi0MLKhBsg2_grYP9f8"
-#   embedding_model: "models/embedding-001"
-#   llm_model: "gemini-pro"
-# # config/settings.yaml
-# This file is for LOCAL development and should be in your .gitignore
-# It provides the necessary configuration for running the app on your own machine.
 
 gemini:
-  # Paste your real API key here for local testing.
-  api_key: "AIzaSyDrI-23BV5O5ytJ-UOgz-GJtIr836eOo_s"
-  
-  
-  # These are the standard model names.
+  api_key: ${GEMINI_API_KEY}
   embedding_model: "models/embedding-001"
   llm_model: "models/gemini-1.5-flash-latest"
 
@@ -22,29 +11,8 @@ data:
 
 ingestion:
   parsing_strategy: "fast"
-# gemini:
-
-#   # api_key: st.secrets["API_KEY"]
-#   api_key="AIzaSyDrI-23BV5O5ytJ-UOgz-GJtIr836eOo_s"
-  
-#   # Use this exact name for the embedding model
-#   embedding_model: "models/embedding-001"
-  
-#   # Use this exact name for the generative LLM
-#   llm_model: "models/gemini-1.5-flash-latest"
-
-
-# data:
-#   pdf_path: "data/pdf"
-#   excel_path: "data/excelfile.xlsx"
-#   vector_store_path: "vector_store/faiss_index"
-
-# # New section for the ingestion pipeline
-# ingestion:
-#   parsing_strategy: "fast" # Options: "hi_res", "fast", "ocr_only"
-#   process_images: true 
 
 
 
 
-  # api_key: "AIzaSyDnlZ4tLCQRwK73vi0MLKhBsg2_grYP9f8"
+

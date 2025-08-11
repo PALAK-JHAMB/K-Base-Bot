@@ -7,3 +7,4 @@ __pycache__/
 .DS_Store
 config/settings.yaml
 vector_store/
+.streamlit/secrets.toml
