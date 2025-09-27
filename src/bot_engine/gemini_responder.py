@@ -15,8 +15,8 @@ def get_rag_chain(retriever, config: dict):
 
     # --- 1. Load the OpenAI API Key from secrets ---
     # We no longer need the full config dictionary here, just the key.
-    if "OPENAI_API_KEY" in st.secrets:
-        api_key = st.secrets["OPENAI_API_KEY"]
+    if "API_KEY" in st.secrets:
+        api_key = st.secrets["API_KEY"]
     else:
         raise ValueError("OPENAI_API_KEY not found in Streamlit secrets!")
     
