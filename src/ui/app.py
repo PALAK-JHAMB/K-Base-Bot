@@ -14,7 +14,9 @@ sys.path.append(PROJECT_ROOT)
 from src.ingestion.excel_parser import parse_excel_qa
 from src.bot_engine.gemini_responder import get_rag_chain
 from src.vector_store.vector_builder import build_vector_store
-# from src.vector_store.retriever import get_retriever
+# --- We now need these for loading the index directly ---
+from langchain_huggingface import HuggingFaceEmbeddings
+from langchain_community.vectorstores import FAISS
 
 # --- Page Configuration ---
 st.set_page_config(page_title="Document & FAQ Chatbot", layout="wide")
@@ -25,8 +27,8 @@ st.write("Ask a question about your documents, or check our FAQs!")
 @st.cache_resource
 def load_all_resources():
     """
-    Loads all necessary resources, handling config, secrets, and building/loading the vector store.
-    This is the single source of truth for configuration.
+    Loads all resources. Builds the vector store if needed, then loads it
+    and creates the retriever directly. This is the single source of truth.
     """
     print("\n--- INITIATING RESOURCE LOADING ---")
 
@@ -57,11 +59,32 @@ def load_all_resources():
     vector_store_path = os.path.join(PROJECT_ROOT, config['data']['vector_store_path'])
     if not os.path.exists(vector_store_path):
         st.info("Knowledge base not found. Building it now. This may take a few minutes...")
-        # Pass the config to the builder for file paths
-        build_vector_store(config)
+        # We pass a temporary config to the builder that includes the API key for the LLM part of unstructured
+        # but this part of the code is now independent of the main API key for embeddings.
+        build_config = config.copy()
+        if "OPENAI_API_KEY" in st.secrets:
+             if 'openai' not in build_config: build_config['openai'] = {}
+             build_config['openai']['api_key'] = st.secrets["OPENAI_API_KEY"]
+        build_vector_store(build_config)
     
-    # --- 3. Load all resources using the config ---
-    faq_data, retriever, rag_chain = None, None, None
+    # --- 3. Load the Vector Store and Create the Retriever ---
+    retriever = None
+    try:
+        print("Loading vector store and creating retriever...")
+        embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
+        vector_store = FAISS.load_local(
+            vector_store_path, 
+            embeddings,
+            allow_dangerous_deserialization=True
+        )
+        retriever = vector_store.as_retriever(search_kwargs={"k": 7})
+        print(f"Retriever Loaded: {'SUCCESS' if retriever is not None else 'FAILED'}")
+    except Exception as e:
+        print(f"Retriever Loaded: FAILED with an exception: {e}")
+
+    # --- 4. Load other resources ---
+    faq_data = None
+    rag_chain = None
     
     try:
         excel_path = os.path.join(PROJECT_ROOT, config['data']['excel_path'])
@@ -69,13 +92,6 @@ def load_all_resources():
         print(f"FAQ Data Loaded: {'SUCCESS' if faq_data is not None else 'FAILED'}")
     except Exception as e:
         print(f"FAQ Data Loaded: FAILED with an exception: {e}")
-
-    try:
-        # The retriever now uses Hugging Face and only needs the config for the path
-        retriever = get_retriever(config)
-        print(f"Retriever Loaded: {'SUCCESS' if retriever is not None else 'FAILED'}")
-    except Exception as e:
-        print(f"Retriever Loaded: FAILED with an exception: {e}")
 
     try:
         # The RAG chain now uses OpenAI and gets its key from st.secrets internally
@@ -95,7 +111,7 @@ def load_all_resources():
 # --- Load all resources and assign them to variables ---
 faq_data, retriever, rag_chain = load_all_resources()
 
-# --- Chat Logic ---
+# --- [The rest of your app.py (Chat Logic, UI State, Main Interaction) is correct] ---
 def get_faq_answer(query: str, faqs: list[dict]) -> str or None:
     if not faqs: return None
     faq_questions = [item['user_desc'] for item in faqs]
@@ -109,16 +125,13 @@ def get_faq_answer(query: str, faqs: list[dict]) -> str or None:
                 return item['user_reply_desc']
     return None
 
-# --- UI State Management ---
 if 'messages' not in st.session_state:
     st.session_state.messages = [{"role": "assistant", "content": "How can I help you today?"}]
 
-# Display chat messages from history
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
 
-# --- Main Interaction Logic ---
 if prompt := st.chat_input("Ask your question..."):
     st.session_state.messages.append({"role": "user", "content": prompt})
     with st.chat_message("user"):
@@ -132,7 +145,6 @@ if prompt := st.chat_input("Ask your question..."):
                 response = f"**From FAQ:**\n\n{faq_answer}"
             else:
                 st.info("No FAQ match found. Searching documents...")
-                # The final chain from our OpenAI responder expects a string
                 response = rag_chain.invoke(prompt)
             
             st.markdown(response)
