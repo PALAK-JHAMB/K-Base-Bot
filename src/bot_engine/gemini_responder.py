@@ -1,56 +1,37 @@
+# src/bot_engine/gemini_responder.py
 
-
-import yaml
 import os
-from langchain_google_genai import ChatGoogleGenerativeAI
+from langchain_openai import ChatOpenAI # <-- NEW IMPORT
 from langchain_core.prompts import PromptTemplate
 from langchain_core.runnables import RunnablePassthrough
 from langchain_core.output_parsers import StrOutputParser
 import streamlit as st
 
-# --- DEFINE PROJECT ROOT for reliable file paths ---
-PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
-
-def get_rag_chain(retriever):
+def get_rag_chain(retriever, config: dict):
     """
-    Creates and returns a robust RAG chain using the "Stuff" method,
-    but with an advanced, conditional prompt to control the output format.
+    Creates and returns a robust RAG chain using the OpenAI API for the LLM.
     """
     print("RAG Chain: Initializing...")
+
+    # --- 1. Load the OpenAI API Key from secrets ---
+    # We no longer need the full config dictionary here, just the key.
+    if "OPENAI_API_KEY" in st.secrets:
+        api_key = st.secrets["OPENAI_API_KEY"]
+    else:
+        raise ValueError("OPENAI_API_KEY not found in Streamlit secrets!")
     
-    # --- 1. Load Config (Hybrid Approach) ---
-    config = {}
-    settings_path = os.path.join(PROJECT_ROOT, "config", "settings.yaml")
-    try:
-        with open(settings_path, 'r') as f:
-            config = yaml.safe_load(f)
-        if "API_KEY" in st.secrets:
-            config['gemini']['api_key'] = st.secrets["API_KEY"]
-    except FileNotFoundError:
-        if "API_KEY" in st.secrets:
-            config = {
-                "gemini": {
-                    "api_key": st.secrets["API_KEY"],
-                    "llm_model": "models/gemini-2.5-flash"
-                }
-            }
-        else:
-            raise ValueError("API Key not found in Streamlit secrets.")
-            
-    api_key = config['gemini']['api_key']
-    llm_model_name = config['gemini']['llm_model']
-    
-    print("RAG Chain: Initializing Gemini LLM...")
-    llm = ChatGoogleGenerativeAI(
-        model=llm_model_name,
-        google_api_key=api_key,
-        temperature=0.1, # Lowered for more factual responses
-        max_output_tokens=2048
+    print("RAG Chain: Initializing OpenAI LLM (gpt-3.5-turbo)...")
+    # --- USE CHATOPENAI INSTEAD OF GEMINI ---
+    llm = ChatOpenAI(
+        model_name="gpt-3.5-turbo",
+        openai_api_key=api_key,
+        temperature=0.2,
+        max_tokens=2048
     )
-    print("RAG Chain: Gemini LLM initialized.")
+    print("RAG Chain: OpenAI LLM initialized.")
 
     # --- 2. Define the Advanced Conditional Prompt ---
-    # This is your powerful prompt that handles both summaries and detailed steps.
+    # This prompt works perfectly with GPT models as well.
     conditional_prompt = PromptTemplate.from_template(
         """
         You are an expert technical assistant. You have been given the following context from a user manual.
@@ -66,8 +47,7 @@ def get_rag_chain(retriever):
         {context}
 
         **Final Instruction for ALL answers:**
-        - Do not say "the provided text excerpts do not offer further details" or similar phrases.
-        - Write the answer as if you are the definitive expert using only the provided context.
+        - Do not say "the provided text excerpts do not offer further details". Write the answer as if you are the definitive expert using only the provided context.
         - After the main answer, skip two lines and add a "Sources:" section, citing the source and page number for the information used.
 
         Begin:
@@ -76,17 +56,30 @@ def get_rag_chain(retriever):
 
     # --- 3. Format Documents and Build the Chain ---
     def format_docs_with_sources(docs):
-        # Joins the content of all retrieved documents and formats the sources
         context = "\n\n---\n\n".join([d.page_content for d in docs])
         
-        sources = set()
+        sources_dict = {}
         for doc in docs:
-            source = doc.metadata.get("source", "Unknown").replace('\\', '/').split('/')[-1] # Clean up path
+            source = os.path.basename(doc.metadata.get("source", "Unknown"))
             page = doc.metadata.get("page", "N/A")
-            sources.add(f"{source} (Page: {page})")
+            if isinstance(page, int): page += 1
+
+            if source not in sources_dict:
+                sources_dict[source] = set()
+            if page != "N/A":
+                sources_dict[source].add(str(page))
         
-        sources_str = "\n* ".join(sorted(list(sources)))
-        # We will append the sources to the context itself, so the LLM can see them.
+        sources_list = []
+        for source, pages in sources_dict.items():
+            if pages:
+                page_str = ", ".join(sorted(list(pages), key=int))
+                sources_list.append(f"{source} (Pages: {page_str})")
+            else:
+                sources_list.append(source)
+        
+        sources_str = "\n* ".join(sources_list)
+        
+        # We will append the sources to the context itself, so the LLM can see them for citation.
         return f"{context}\n\n---SOURCES---\n{sources_str}"
 
     print("RAG Chain: Building the final LCEL chain...")
@@ -99,7 +92,3 @@ def get_rag_chain(retriever):
     print("RAG Chain: Chain built successfully.")
     
     return rag_chain
-
-
-
-

@@ -40,3 +40,4 @@ google.generativeai
 nest_asyncio
 langchain-huggingface
 sentence-transformers
+langchain-openai
