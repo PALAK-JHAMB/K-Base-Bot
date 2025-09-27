@@ -38,3 +38,5 @@ python-Levenshtein
 
 google.generativeai
 nest_asyncio
+langchain-huggingface
+sentence-transformers
