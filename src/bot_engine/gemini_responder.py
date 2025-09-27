@@ -31,7 +31,7 @@ def get_rag_chain(retriever):
             config = {
                 "gemini": {
                     "api_key": st.secrets["API_KEY"],
-                    "llm_model": "models/gemini-1.5-flash-latest"
+                    "llm_model": "models/gemini-2.5-flash"
                 }
             }
         else:

@@ -386,7 +386,7 @@ def load_all_resources():
                 "gemini": {
                     "api_key": st.secrets["API_KEY"],
                     "embedding_model": "models/embedding-001",
-                    "llm_model": "models/gemini-1.5-flash-latest"
+                    "llm_model": "models/gemini-2.5-flash"
                 },
                 "data": {
                     "pdf_path": "data/pdf",
