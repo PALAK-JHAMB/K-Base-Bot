@@ -70,12 +70,14 @@
 
 # src/vector_store/vector_builder.py
 
+# src/vector_store/vector_builder.py
+
 import sys
 import os
 import yaml
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_community.vectorstores import FAISS
-from langchain_huggingface import HuggingFaceEmbeddings # <-- IMPORTANT CHANGE
+from langchain_huggingface import HuggingFaceEmbeddings
 
 # --- System Path Setup ---
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
