@@ -1,116 +1,3 @@
-# # src/ui/app.py
-
-# import streamlit as st
-# import yaml
-# import sys
-# import os
-# from thefuzz import process
-
-# # --- System Path Setup (CRITICAL FOR MODULAR IMPORTS) ---
-# PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
-# sys.path.append(PROJECT_ROOT)
-
-# # --- Backend Imports ---
-# from src.ingestion.excel_parser import parse_excel_qa
-# from src.bot_engine.gemini_responder import get_rag_chain
-# from src.vector_store.vector_builder import build_vector_store
-# # --- We now need these for loading the index directly ---
-# from langchain_huggingface import HuggingFaceEmbeddings
-# from langchain_community.vectorstores import FAISS
-
-# # --- Page Configuration ---
-# st.set_page_config(page_title="Document & FAQ Chatbot", layout="wide")
-# st.title("IRCTC Chatbot: Ask all your queries")
-# st.subheader("CENTER FOR RAILWAY INFORMATION SYSTEMS")
-# st.write("Ask a question about your documents, or check our FAQs!")
-
-# @st.cache_resource
-# def load_all_resources():
-#     """
-#     Loads all resources. Builds the vector store if needed, then loads it
-#     and creates the retriever directly. This is the single source of truth.
-#     """
-#     print("\n--- INITIATING RESOURCE LOADING ---")
-
-#     # --- 1. Load Config (Secrets-First Approach) ---
-#     config = {}
-#     # First, try to load from local YAML for non-secret defaults
-#     try:
-#         settings_path = os.path.join(PROJECT_ROOT, "config", "settings.yaml")
-#         with open(settings_path, 'r') as f:
-#             config = yaml.safe_load(f)
-#         print("1. Loaded base config from 'settings.yaml'.")
-#     except FileNotFoundError:
-#         print("1. 'settings.yaml' not found. Using hardcoded defaults for deployment.")
-#         # Define default config if YAML is missing (for cloud environment)
-#         config = {
-#             "data": {
-#                 "pdf_path": "data/pdf",
-#                 "excel_path": "data/excelfile.xlsx",
-#                 "vector_store_path": "vector_store/faiss_index"
-#             },
-#             "ingestion": {
-#                 "parsing_strategy": "fast"
-#             }
-#         }
-
-#     # --- 2. Build Vector Store if it doesn't exist ---
-#     # This uses the Hugging Face model and does NOT require an API key.
-#     vector_store_path = os.path.join(PROJECT_ROOT, config['data']['vector_store_path'])
-#     if not os.path.exists(vector_store_path):
-#         st.info("Knowledge base not found. Building it now. This may take a few minutes...")
-#         # We pass a temporary config to the builder that includes the API key for the LLM part of unstructured
-#         # but this part of the code is now independent of the main API key for embeddings.
-#         build_config = config.copy()
-#         if "OPENAI_API_KEY" in st.secrets:
-#              if 'openai' not in build_config: build_config['openai'] = {}
-#              build_config['openai']['api_key'] = st.secrets["OPENAI_API_KEY"]
-#         build_vector_store(build_config)
-    
-#     # --- 3. Load the Vector Store and Create the Retriever ---
-#     retriever = None
-#     try:
-#         print("Loading vector store and creating retriever...")
-#         embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
-#         vector_store = FAISS.load_local(
-#             vector_store_path, 
-#             embeddings,
-#             allow_dangerous_deserialization=True
-#         )
-#         retriever = vector_store.as_retriever(search_kwargs={"k": 7})
-#         print(f"Retriever Loaded: {'SUCCESS' if retriever is not None else 'FAILED'}")
-#     except Exception as e:
-#         print(f"Retriever Loaded: FAILED with an exception: {e}")
-
-#     # --- 4. Load other resources ---
-#     faq_data = None
-#     rag_chain = None
-    
-#     try:
-#         excel_path = os.path.join(PROJECT_ROOT, config['data']['excel_path'])
-#         faq_data = parse_excel_qa(excel_path)
-#         print(f"FAQ Data Loaded: {'SUCCESS' if faq_data is not None else 'FAILED'}")
-#     except Exception as e:
-#         print(f"FAQ Data Loaded: FAILED with an exception: {e}")
-
-#     try:
-#         # The RAG chain now uses OpenAI and gets its key from st.secrets internally
-#         rag_chain = get_rag_chain(retriever, config)
-#         print(f"RAG Chain Loaded: {'SUCCESS' if rag_chain is not None else 'FAILED'}")
-#     except Exception as e:
-#         print(f"RAG Chain Loaded: FAILED with an exception: {e}")
-    
-#     # --- Final Check ---
-#     if faq_data is None or retriever is None or rag_chain is None:
-#         st.error("Failed to load one or more resources. Please check terminal logs for details.")
-#         st.stop()
-        
-#     print("--- ALL RESOURCES LOADED SUCCESSFULLY ---\n")
-#     return faq_data, retriever, rag_chain
-
-# # --- Load all resources and assign them to variables ---
-# faq_data, retriever, rag_chain = load_all_resources()
-
 # src/ui/app.py
 
 import streamlit as st
@@ -127,7 +14,9 @@ sys.path.append(PROJECT_ROOT)
 from src.ingestion.excel_parser import parse_excel_qa
 from src.bot_engine.gemini_responder import get_rag_chain
 from src.vector_store.vector_builder import build_vector_store
-from src.vector_store.retriever import get_retriever
+# --- We now need these for loading the index directly ---
+from langchain_huggingface import HuggingFaceEmbeddings
+from langchain_community.vectorstores import FAISS
 
 # --- Page Configuration ---
 st.set_page_config(page_title="Document & FAQ Chatbot", layout="wide")
@@ -138,8 +27,8 @@ st.write("Ask a question about your documents, or check our FAQs!")
 @st.cache_resource
 def load_all_resources():
     """
-    Loads all necessary resources, handling config, secrets, and building/loading the vector store.
-    This is the single source of truth for configuration.
+    Loads all resources. Builds the vector store if needed, then loads it
+    and creates the retriever directly. This is the single source of truth.
     """
     print("\n--- INITIATING RESOURCE LOADING ---")
 
@@ -167,8 +56,24 @@ def load_all_resources():
         st.info("Knowledge base not found. Building it now. This may take a few minutes...")
         build_vector_store(config)
     
-    # --- 3. Load all resources ---
-    faq_data, retriever, rag_chain = None, None, None
+    # --- 3. Load the Vector Store and Create the Retriever ---
+    retriever = None
+    try:
+        print("Loading vector store and creating retriever...")
+        embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
+        vector_store = FAISS.load_local(
+            vector_store_path, 
+            embeddings,
+            allow_dangerous_deserialization=True
+        )
+        retriever = vector_store.as_retriever(search_kwargs={"k": 7})
+        print(f"Retriever Loaded: {'SUCCESS' if retriever is not None else 'FAILED'}")
+    except Exception as e:
+        print(f"Retriever Loaded: FAILED with an exception: {e}")
+
+    # --- 4. Load other resources ---
+    faq_data = None
+    rag_chain = None
     
     try:
         excel_path = os.path.join(PROJECT_ROOT, config['data']['excel_path'])
@@ -178,14 +83,7 @@ def load_all_resources():
         print(f"FAQ Data Loaded: FAILED with an exception: {e}")
 
     try:
-        # Create the retriever
-        retriever = get_retriever(config)
-        print(f"Retriever Loaded: {'SUCCESS' if retriever is not None else 'FAILED'}")
-    except Exception as e:
-        print(f"Retriever Loaded: FAILED with an exception: {e}")
-
-    try:
-        # Pass the retriever to the RAG chain builder
+        # The RAG chain gets its API key from st.secrets internally
         rag_chain = get_rag_chain(retriever, config)
         print(f"RAG Chain Loaded: {'SUCCESS' if rag_chain is not None else 'FAILED'}")
     except Exception as e:
@@ -197,15 +95,12 @@ def load_all_resources():
         st.stop()
         
     print("--- ALL RESOURCES LOADED SUCCESSFULLY ---\n")
-    # --- CORRECTED RETURN STATEMENT ---
     return faq_data, retriever, rag_chain
 
-# --- CORRECTED FUNCTION CALL ---
+# --- Load all resources and assign them to variables ---
 faq_data, retriever, rag_chain = load_all_resources()
 
-
-    
-# # --- [The rest of your app.py (Chat Logic, UI State, Main Interaction) is correct] ---
+# --- [The rest of your app.py (Chat Logic, UI State, Main Interaction) is correct] ---
 def get_faq_answer(query: str, faqs: list[dict]) -> str or None:
     if not faqs: return None
     faq_questions = [item['user_desc'] for item in faqs]
@@ -244,5 +139,3 @@ if prompt := st.chat_input("Ask your question..."):
             st.markdown(response)
             
     st.session_state.messages.append({"role": "assistant", "content": response})
-
-    
