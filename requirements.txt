@@ -6,7 +6,7 @@ pypdf
 langchain
 langchain-google-genai
 faiss-cpu
-streamlit
+
 
 
 unstructured
@@ -32,12 +32,18 @@ pi-heif
 pillow
 pyyaml
 
-streamlit
+
 thefuzz
 python-Levenshtein 
 
 google.generativeai
 nest_asyncio
+
+
+
+streamlit
+langchain
 langchain-huggingface
 sentence-transformers
-langchain-openai
+
+
