@@ -182,14 +182,14 @@ def load_all_resources():
     except Exception as e:
         print(f"RAG Chain Loaded: FAILED with an exception: {e}")
     
-    if faq_data is None or retriever is None or rag_chain is None:
+    if faq_data is None  or rag_chain is None:
         st.error("Failed to load one or more resources...")
         st.stop()
         
     print("--- ALL RESOURCES LOADED SUCCESSFULLY ---\n")
-    return faq_data, retriever, rag_chain
+    return faq_data,  rag_chain
 
-faq_data, retriever, rag_chain = load_all_resources()
+faq_data, rag_chain = load_all_resources()
 
 
     
