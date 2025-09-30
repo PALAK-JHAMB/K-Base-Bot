@@ -112,19 +112,24 @@
 # faq_data, retriever, rag_chain = load_all_resources()
 
 # src/ui/app.py
-import streamlit as st
-import yaml, sys, os
-from thefuzz import process
-from langchain_huggingface import HuggingFaceEmbeddings
-from langchain_community.vectorstores import FAISS
 
+import streamlit as st
+import yaml
+import sys
+import os
+from thefuzz import process
+
+# --- System Path Setup (CRITICAL FOR MODULAR IMPORTS) ---
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
 sys.path.append(PROJECT_ROOT)
 
+# --- Backend Imports ---
 from src.ingestion.excel_parser import parse_excel_qa
 from src.bot_engine.gemini_responder import get_rag_chain
 from src.vector_store.vector_builder import build_vector_store
+from src.vector_store.retriever import get_retriever
 
+# --- Page Configuration ---
 st.set_page_config(page_title="Document & FAQ Chatbot", layout="wide")
 st.title("IRCTC Chatbot: Ask all your queries")
 st.subheader("CENTER FOR RAILWAY INFORMATION SYSTEMS")
@@ -132,8 +137,13 @@ st.write("Ask a question about your documents, or check our FAQs!")
 
 @st.cache_resource
 def load_all_resources():
+    """
+    Loads all necessary resources, handling config, secrets, and building/loading the vector store.
+    This is the single source of truth for configuration.
+    """
     print("\n--- INITIATING RESOURCE LOADING ---")
 
+    # --- 1. Load Config (Secrets-First Approach) ---
     config = {}
     try:
         settings_path = os.path.join(PROJECT_ROOT, "config", "settings.yaml")
@@ -141,7 +151,7 @@ def load_all_resources():
             config = yaml.safe_load(f)
         print("1. Loaded base config from 'settings.yaml'.")
     except FileNotFoundError:
-        print("1. 'settings.yaml' not found. Using hardcoded defaults.")
+        print("1. 'settings.yaml' not found. Using hardcoded defaults for deployment.")
         config = {
             "data": {
                 "pdf_path": "data/pdf",
@@ -151,24 +161,15 @@ def load_all_resources():
             "ingestion": {"parsing_strategy": "fast", "process_images": False}
         }
 
+    # --- 2. Build Vector Store if it doesn't exist ---
     vector_store_path = os.path.join(PROJECT_ROOT, config['data']['vector_store_path'])
     if not os.path.exists(vector_store_path):
-        st.info("Knowledge base not found. Building it now...")
+        st.info("Knowledge base not found. Building it now. This may take a few minutes...")
         build_vector_store(config)
     
-    retriever, faq_data, rag_chain = None, None, None
+    # --- 3. Load all resources ---
+    faq_data, retriever, rag_chain = None, None, None
     
-    try:
-        print("Loading vector store and creating retriever...")
-        embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
-        vector_store = FAISS.load_local(
-            vector_store_path, embeddings, allow_dangerous_deserialization=True
-        )
-        retriever = vector_store.as_retriever(search_kwargs={"k": 7})
-        print(f"Retriever Loaded: SUCCESS")
-    except Exception as e:
-        print(f"Retriever Loaded: FAILED with an exception: {e}")
-
     try:
         excel_path = os.path.join(PROJECT_ROOT, config['data']['excel_path'])
         faq_data = parse_excel_qa(excel_path)
@@ -177,19 +178,30 @@ def load_all_resources():
         print(f"FAQ Data Loaded: FAILED with an exception: {e}")
 
     try:
+        # Create the retriever
+        retriever = get_retriever(config)
+        print(f"Retriever Loaded: {'SUCCESS' if retriever is not None else 'FAILED'}")
+    except Exception as e:
+        print(f"Retriever Loaded: FAILED with an exception: {e}")
+
+    try:
+        # Pass the retriever to the RAG chain builder
         rag_chain = get_rag_chain(retriever, config)
         print(f"RAG Chain Loaded: {'SUCCESS' if rag_chain is not None else 'FAILED'}")
     except Exception as e:
         print(f"RAG Chain Loaded: FAILED with an exception: {e}")
     
-    if faq_data is None  or rag_chain is None:
-        st.error("Failed to load one or more resources...")
+    # --- Final Check ---
+    if faq_data is None or retriever is None or rag_chain is None:
+        st.error("Failed to load one or more resources. Please check terminal logs for details.")
         st.stop()
         
     print("--- ALL RESOURCES LOADED SUCCESSFULLY ---\n")
-    return faq_data,  rag_chain
+    # --- CORRECTED RETURN STATEMENT ---
+    return faq_data, retriever, rag_chain
 
-faq_data, rag_chain = load_all_resources()
+# --- CORRECTED FUNCTION CALL ---
+faq_data, retriever, rag_chain = load_all_resources()
 
 
     
