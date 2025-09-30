@@ -25,98 +25,73 @@ st.title("IRCTC Chatbot: Ask all your queries")
 st.subheader("CENTER FOR RAILWAY INFORMATION SYSTEMS")
 st.write("Ask a question about your documents, or check our FAQs!")
 
-# @st.cache_resource
-# def load_all_resources():
-#     """
-#     Loads all necessary resources. Builds the vector store if needed, then loads it
-#     and creates the retriever directly. The FAQ feature is disabled to conserve memory.
-#     """
-#     print("\n--- INITIATING RESOURCE LOADING ---")
-
-#     # --- 1. Load Config ---
-#     config = {}
-#     try:
-#         settings_path = os.path.join(PROJECT_ROOT, "config", "settings.yaml")
-#         with open(settings_path, 'r') as f:
-#             config = yaml.safe_load(f)
-#         print("1. Loaded base config from 'settings.yaml'.")
-#     except FileNotFoundError:
-#         print("1. 'settings.yaml' not found. Using hardcoded defaults for deployment.")
-#         config = {
-#             "data": {
-#                 "pdf_path": "data/pdf",
-#                 "excel_path": "data/excelfile.xlsx",
-#                 "vector_store_path": "vector_store/faiss_index"
-#             },
-#             "ingestion": {"parsing_strategy": "fast", "process_images": False}
-#         }
-
-#     # --- 2. Build Vector Store if it doesn't exist ---
-#     vector_store_path = os.path.join(PROJECT_ROOT, config['data']['vector_store_path'])
-#     if not os.path.exists(vector_store_path):
-#         st.info("Knowledge base not found. Building it now. This may take a few minutes...")
-#         build_vector_store(config)
-    
-#     # --- 3. Load the Vector Store and Create the Retriever ---
-#     retriever = None
-#     try:
-#         print("Loading vector store and creating retriever...")
-#         embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
-#         vector_store = FAISS.load_local(
-#             vector_store_path, 
-#             embeddings,
-#             allow_dangerous_deserialization=True
-#         )
-#         retriever = vector_store.as_retriever(search_kwargs={"k": 7})
-#         print(f"Retriever Loaded: SUCCESS")
-#     except Exception as e:
-#         print(f"Retriever Loaded: FAILED with an exception: {e}")
-
-#     # --- 4. Load other resources (FAQ DISABLED TO PREVENT MEMORY CRASH) ---
-#     faq_data = None  # Explicitly disable the FAQ feature
-#     rag_chain = None
-    
-#     print(f"FAQ Data Loaded: SKIPPED (to conserve memory on Streamlit Cloud)")
-
-#     try:
-#         rag_chain = get_rag_chain(retriever, config)
-#         print(f"RAG Chain Loaded: {'SUCCESS' if rag_chain is not None else 'FAILED'}")
-#     except Exception as e:
-#         print(f"RAG Chain Loaded: FAILED with an exception: {e}")
-    
-#     # --- Final Check (Simplified for RAG-only) ---
-#     if retriever is None or rag_chain is None:
-#         st.error("Failed to load the RAG pipeline. Please check the logs for errors.")
-#         st.stop()
-        
-#     print("--- ALL RESOURCES LOADED SUCCESSFULLY ---\n")
-#     return faq_data, retriever, rag_chain
-# In src/ui/app.py
-
 @st.cache_resource
 def load_all_resources():
     """
-    Loads all necessary resources, assuming the vector store has already been built.
-    This function is now fast and will not time out.
+    Loads all necessary resources. Builds the vector store if needed, then loads it
+    and creates the retriever directly. The FAQ feature is disabled to conserve memory.
     """
-    print("\n--- INITIATING FAST RESOURCE LOADING ---")
+    print("\n--- INITIATING RESOURCE LOADING ---")
 
-    # --- [Your existing hybrid config loading logic is correct and can stay] ---
+    # --- 1. Load Config ---
     config = {}
-    # ...
+    try:
+        settings_path = os.path.join(PROJECT_ROOT, "config", "settings.yaml")
+        with open(settings_path, 'r') as f:
+            config = yaml.safe_load(f)
+        print("1. Loaded base config from 'settings.yaml'.")
+    except FileNotFoundError:
+        print("1. 'settings.yaml' not found. Using hardcoded defaults for deployment.")
+        config = {
+            "data": {
+                "pdf_path": "data/pdf",
+                "excel_path": "data/excelfile.xlsx",
+                "vector_store_path": "vector_store/faiss_index"
+            },
+            "ingestion": {"parsing_strategy": "fast", "process_images": False}
+        }
 
-    # --- Load all resources, assuming the index exists ---
+    # --- 2. Build Vector Store if it doesn't exist ---
     vector_store_path = os.path.join(PROJECT_ROOT, config['data']['vector_store_path'])
     if not os.path.exists(vector_store_path):
-        st.error("Knowledge base (vector store) not found! Please run the build process first by setting the app file to build.py.")
-        st.stop()
-
-    # The rest of your loading logic is correct
-    faq_data, retriever, rag_chain = None, None, None
-    # ...
+        st.info("Knowledge base not found. Building it now. This may take a few minutes...")
+        build_vector_store(config)
     
+    # --- 3. Load the Vector Store and Create the Retriever ---
+    retriever = None
+    try:
+        print("Loading vector store and creating retriever...")
+        embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
+        vector_store = FAISS.load_local(
+            vector_store_path, 
+            embeddings,
+            allow_dangerous_deserialization=True
+        )
+        retriever = vector_store.as_retriever(search_kwargs={"k": 7})
+        print(f"Retriever Loaded: SUCCESS")
+    except Exception as e:
+        print(f"Retriever Loaded: FAILED with an exception: {e}")
+
+    # --- 4. Load other resources (FAQ DISABLED TO PREVENT MEMORY CRASH) ---
+    faq_data = None  # Explicitly disable the FAQ feature
+    rag_chain = None
+    
+    print(f"FAQ Data Loaded: SKIPPED (to conserve memory on Streamlit Cloud)")
+
+    try:
+        rag_chain = get_rag_chain(retriever, config)
+        print(f"RAG Chain Loaded: {'SUCCESS' if rag_chain is not None else 'FAILED'}")
+    except Exception as e:
+        print(f"RAG Chain Loaded: FAILED with an exception: {e}")
+    
+    # --- Final Check (Simplified for RAG-only) ---
+    if retriever is None or rag_chain is None:
+        st.error("Failed to load the RAG pipeline. Please check the logs for errors.")
+        st.stop()
+        
     print("--- ALL RESOURCES LOADED SUCCESSFULLY ---\n")
     return faq_data, retriever, rag_chain
+
 
 # --- Load all resources and assign them to variables ---
 faq_data, retriever, rag_chain = load_all_resources()
