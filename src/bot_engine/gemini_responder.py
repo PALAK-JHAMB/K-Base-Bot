@@ -69,16 +69,16 @@ def get_rag_chain(retriever, config: dict):
     else:
         raise ValueError("❌ HUGGINGFACEHUB_API_TOKEN not found in Streamlit secrets!")
 
-    # --- Initialize Hugging Face Endpoint ---
-    repo_id = "mistralai/Mistral-7B-Instruct-v0.2"
+    # --- Use a stable model that supports text-generation ---
+    repo_id = "google/flan-t5-base"   # ✅ switch here
     llm = HuggingFaceEndpoint(
         repo_id=repo_id,
-        task="conversational",     # ✅ required for Mistral instruct models
+        task="text-generation",       # supported task
         huggingfacehub_api_token=api_key,
         temperature=0.2,
-        max_new_tokens=1024
+        max_new_tokens=512            # smaller limit for flan-t5-base
     )
-    print("RAG Chain: LLM initialized successfully.")
+    print(f"RAG Chain: LLM initialized successfully with {repo_id}")
 
     # --- Prompt Template ---
     conditional_prompt = PromptTemplate.from_template(
