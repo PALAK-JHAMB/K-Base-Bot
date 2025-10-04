@@ -56,7 +56,7 @@
 import os
 import streamlit as st
 from langchain_community.chat_models import ChatHuggingFace
-from langchain_huggingface import HuggingFaceHub   # ✅ import the hub LLM
+from langchain_community.llms import HuggingFaceHub   # ✅ correct import
 from langchain_core.prompts import PromptTemplate
 from langchain_core.runnables import RunnablePassthrough
 from langchain_core.output_parsers import StrOutputParser
@@ -75,14 +75,13 @@ def get_rag_chain(retriever, config: dict):
     print("RAG Chain: Initializing LLM via Hugging Face Inference API (Mistral-7B)...")
     repo_id = "mistralai/Mistral-7B-Instruct-v0.2"
 
-    # Create HuggingFaceHub LLM first
     hf_llm = HuggingFaceHub(
         repo_id=repo_id,
         huggingfacehub_api_token=api_key,
         model_kwargs={"temperature": 0.2, "max_new_tokens": 1024}
     )
 
-    # Wrap into a chat model
+    # Wrap into chat model
     llm = ChatHuggingFace(llm=hf_llm)
     print("RAG Chain: LLM initialized successfully.")
 
