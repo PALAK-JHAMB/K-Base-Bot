@@ -55,7 +55,7 @@
 # CHATGPT VAALAAA
 import os
 import streamlit as st
-from langchain_huggingface import HuggingFaceEndpoint   # ✅ modern API
+from langchain_huggingface import HuggingFaceEndpoint
 from langchain_core.prompts import PromptTemplate
 from langchain_core.runnables import RunnablePassthrough
 from langchain_core.output_parsers import StrOutputParser
@@ -73,10 +73,10 @@ def get_rag_chain(retriever, config: dict):
     repo_id = "mistralai/Mistral-7B-Instruct-v0.2"
     llm = HuggingFaceEndpoint(
         repo_id=repo_id,
-        task="text-generation",
+        task="conversational",     # ✅ required for Mistral instruct models
         huggingfacehub_api_token=api_key,
-        temperature=0.2,         # ✅ explicit args
-        max_new_tokens=1024      # ✅ explicit args
+        temperature=0.2,
+        max_new_tokens=1024
     )
     print("RAG Chain: LLM initialized successfully.")
 
@@ -124,7 +124,3 @@ def get_rag_chain(retriever, config: dict):
 
     print("RAG Chain: Chain built successfully.")
     return rag_chain
-
-
-
-
