@@ -55,7 +55,8 @@
 # CHATGPT VAALAAA
 import os
 import streamlit as st
-from langchain_community.chat_models import ChatHuggingFace   # ✅ fixed import
+from langchain_community.chat_models import ChatHuggingFace
+from langchain_huggingface import HuggingFaceHub   # ✅ import the hub LLM
 from langchain_core.prompts import PromptTemplate
 from langchain_core.runnables import RunnablePassthrough
 from langchain_core.output_parsers import StrOutputParser
@@ -70,18 +71,22 @@ def get_rag_chain(retriever, config: dict):
     else:
         raise ValueError("❌ HUGGINGFACEHUB_API_TOKEN not found in Streamlit secrets!")
 
-    # --- Initialize Hugging Face Chat Model ---
+    # --- Initialize Hugging Face Hub model ---
     print("RAG Chain: Initializing LLM via Hugging Face Inference API (Mistral-7B)...")
     repo_id = "mistralai/Mistral-7B-Instruct-v0.2"
-    llm = ChatHuggingFace(
+
+    # Create HuggingFaceHub LLM first
+    hf_llm = HuggingFaceHub(
         repo_id=repo_id,
         huggingfacehub_api_token=api_key,
-        temperature=0.2,
-        max_new_tokens=1024
+        model_kwargs={"temperature": 0.2, "max_new_tokens": 1024}
     )
+
+    # Wrap into a chat model
+    llm = ChatHuggingFace(llm=hf_llm)
     print("RAG Chain: LLM initialized successfully.")
 
-    # --- Prompt Template (can be extended as needed) ---
+    # --- Prompt Template ---
     conditional_prompt = PromptTemplate.from_template(
         """
         You are an expert assistant for railway-related queries.
@@ -98,16 +103,14 @@ def get_rag_chain(retriever, config: dict):
         """
     )
 
-    # --- Helper: Format docs + sources ---
+    # --- Format retrieved docs ---
     def format_docs_with_sources(docs):
         context = "\n\n---\n\n".join([d.page_content for d in docs])
         sources_dict = {}
         for doc in docs:
             source = os.path.basename(doc.metadata.get("source", "Unknown"))
             page = doc.metadata.get("page", 0) + 1
-            if source not in sources_dict:
-                sources_dict[source] = set()
-            sources_dict[source].add(str(page))
+            sources_dict.setdefault(source, set()).add(str(page))
 
         sources_list = []
         for source, pages in sources_dict.items():
@@ -127,3 +130,4 @@ def get_rag_chain(retriever, config: dict):
 
     print("RAG Chain: Chain built successfully.")
     return rag_chain
+
