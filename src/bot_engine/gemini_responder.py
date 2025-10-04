@@ -55,8 +55,8 @@
 # CHATGPT VAALAAA
 import os
 import streamlit as st
-from transformers import pipeline
-from langchain.llms import HuggingFacePipeline   # wrapper to use pipeline inside LangChain
+from transformers import pipeline, AutoTokenizer, AutoModelForCausalLM
+from langchain_community.llms import HuggingFacePipeline
 from langchain_core.prompts import PromptTemplate
 from langchain_core.runnables import RunnablePassthrough
 from langchain_core.output_parsers import StrOutputParser
@@ -70,21 +70,29 @@ def get_rag_chain(retriever, config: dict):
     print(f"🔎 Requested local model: {repo_id}")
 
     try:
-        # Create HF pipeline
+        # Ensure model + tokenizer match
+        tokenizer = AutoTokenizer.from_pretrained(repo_id)
+        model = AutoModelForCausalLM.from_pretrained(repo_id)
+
+        # Build local Hugging Face pipeline
         generator = pipeline(
             "text-generation",
-            model=repo_id,
-            device=-1,               # -1 = CPU, 0 = GPU if available
+            model=model,
+            tokenizer=tokenizer,
+            device=-1,       # -1 = CPU, 0 = GPU if available
         )
 
         # Wrap in LangChain
         llm = HuggingFacePipeline(pipeline=generator)
-        print(f"✅ Local model loaded successfully: {repo_id}")
+        print(f"✅ Local model loaded: {repo_id}")
+
     except Exception as e:
         print(f"⚠️ Failed to load {repo_id} → {e}")
-        # Fallback to a very small model
+        # Fallback to distilgpt2
         repo_id = "distilgpt2"
-        generator = pipeline("text-generation", model=repo_id, device=-1)
+        tokenizer = AutoTokenizer.from_pretrained(repo_id)
+        model = AutoModelForCausalLM.from_pretrained(repo_id)
+        generator = pipeline("text-generation", model=model, tokenizer=tokenizer, device=-1)
         llm = HuggingFacePipeline(pipeline=generator)
         print(f"👉 Fallback activated: {repo_id}")
 
@@ -132,6 +140,7 @@ def get_rag_chain(retriever, config: dict):
         | StrOutputParser()
     )
 
-    print(f"Final active local model in use: {repo_id}")
+    print(f"Final active local model: {repo_id}")
     return rag_chain
+
 
