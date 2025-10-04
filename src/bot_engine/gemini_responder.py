@@ -70,16 +70,16 @@ def get_rag_chain(retriever, config: dict):
     else:
         raise ValueError("❌ HUGGINGFACEHUB_API_TOKEN not found in Streamlit secrets!")
 
-    # --- Load model repo ID from config ---
-    requested_repo = config.get("huggingface", {}).get("llm_repo_id", "tiiuae/falcon-7b-instruct")
+    # --- Load model from config ---
+    requested_repo = config.get("huggingface", {}).get("llm_repo_id", "deepseek-ai/DeepSeek-V3.2-Exp")
     active_repo = requested_repo
-    print(f"🔎 Requested LLM from config: {requested_repo}")
+    print(f"🔎 Requested LLM: {requested_repo}")
 
-    # --- Try to initialize LLM ---
+    # --- Initialize Hugging Face Endpoint ---
     try:
         llm = HuggingFaceEndpoint(
             repo_id=requested_repo,
-            task="text-generation",
+            task="text-generation",         # DeepSeek supports text-generation
             huggingfacehub_api_token=api_key,
             temperature=0.2,
             max_new_tokens=512
@@ -87,17 +87,19 @@ def get_rag_chain(retriever, config: dict):
         print(f"✅ Using Hugging Face LLM: {requested_repo}")
     except Exception as e:
         print(f"⚠️ Failed to init {requested_repo} → {e}")
-        active_repo = "tiiuae/falcon-7b-instruct"
-        print(f"👉 Falling back to: {active_repo}")
+        # fallback to a lighter, supported model
+        fallback_repo = "google/flan-t5-base"
+        active_repo = fallback_repo
+        print(f"👉 Falling back to {fallback_repo}")
         llm = HuggingFaceEndpoint(
-            repo_id=active_repo,
+            repo_id=fallback_repo,
             task="text-generation",
             huggingfacehub_api_token=api_key,
             temperature=0.2,
             max_new_tokens=512
         )
 
-    # --- Display active model in Streamlit ---
+    # Show active model in Streamlit UI
     st.sidebar.info(f"**Active LLM Model:** {active_repo}")
 
     # --- Prompt Template ---
@@ -142,5 +144,5 @@ def get_rag_chain(retriever, config: dict):
         | StrOutputParser()
     )
 
-    print(f" Final Active LLM in use: {active_repo}")
+    print(f"Final Active LLM in use: {active_repo}")
     return rag_chain
