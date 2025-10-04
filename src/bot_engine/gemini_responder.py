@@ -64,21 +64,37 @@ from langchain_core.output_parsers import StrOutputParser
 def get_rag_chain(retriever, config: dict):
     print("RAG Chain: Initializing...")
 
+    # --- API Key ---
     if "HUGGINGFACEHUB_API_TOKEN" in st.secrets:
         api_key = st.secrets["HUGGINGFACEHUB_API_TOKEN"]
     else:
         raise ValueError("❌ HUGGINGFACEHUB_API_TOKEN not found in Streamlit secrets!")
 
-    # --- Use a stable model that supports text-generation ---
-    repo_id = "google/flan-t5-base"   # ✅ switch here
-    llm = HuggingFaceEndpoint(
-        repo_id=repo_id,
-        task="text-generation",       # supported task
-        huggingfacehub_api_token=api_key,
-        temperature=0.2,
-        max_new_tokens=512            # smaller limit for flan-t5-base
-    )
-    print(f"RAG Chain: LLM initialized successfully with {repo_id}")
+    # --- Load model repo ID from config ---
+    repo_id = config.get("huggingface", {}).get("llm_repo_id", "google/flan-t5-base")
+    print(f"Requested LLM: {repo_id}")
+
+    # --- Try to initialize LLM ---
+    llm = None
+    try:
+        llm = HuggingFaceEndpoint(
+            repo_id=repo_id,
+            task="text-generation",
+            huggingfacehub_api_token=api_key,
+            temperature=0.2,
+            max_new_tokens=512
+        )
+        print(f"RAG Chain: LLM initialized successfully with {repo_id}")
+    except Exception as e:
+        print(f"⚠️ Failed to init {repo_id} → {e}")
+        print("👉 Falling back to google/flan-t5-base")
+        llm = HuggingFaceEndpoint(
+            repo_id="google/flan-t5-base",
+            task="text-generation",
+            huggingfacehub_api_token=api_key,
+            temperature=0.2,
+            max_new_tokens=512
+        )
 
     # --- Prompt Template ---
     conditional_prompt = PromptTemplate.from_template(
@@ -97,7 +113,7 @@ def get_rag_chain(retriever, config: dict):
         """
     )
 
-    # --- Format retrieved docs ---
+    # --- Format retrieved docs with sources ---
     def format_docs_with_sources(docs):
         context = "\n\n---\n\n".join([d.page_content for d in docs])
         sources_dict = {}
