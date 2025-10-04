@@ -55,67 +55,55 @@
 # CHATGPT VAALAAA
 import os
 import streamlit as st
-from langchain_huggingface import HuggingFaceEndpoint
+from transformers import pipeline
+from langchain.llms import HuggingFacePipeline   # wrapper to use pipeline inside LangChain
 from langchain_core.prompts import PromptTemplate
 from langchain_core.runnables import RunnablePassthrough
 from langchain_core.output_parsers import StrOutputParser
 
 
 def get_rag_chain(retriever, config: dict):
-    print("RAG Chain: Initializing...")
+    print("RAG Chain: Initializing with local model...")
 
-    # --- API Key ---
-    if "HUGGINGFACEHUB_API_TOKEN" in st.secrets:
-        api_key = st.secrets["HUGGINGFACEHUB_API_TOKEN"]
-    else:
-        raise ValueError("❌ HUGGINGFACEHUB_API_TOKEN not found in Streamlit secrets!")
+    # --- Load model from config or default ---
+    repo_id = config.get("huggingface", {}).get("llm_repo_id", "distilgpt2")
+    print(f"🔎 Requested local model: {repo_id}")
 
-    # --- Load model from config ---
-    requested_repo = config.get("huggingface", {}).get("llm_repo_id", "deepseek-ai/DeepSeek-V3.2-Exp")
-    active_repo = requested_repo
-    print(f"🔎 Requested LLM: {requested_repo}")
-
-    # --- Initialize Hugging Face Endpoint ---
     try:
-        llm = HuggingFaceEndpoint(
-            repo_id=requested_repo,
-            task="text-generation",         # DeepSeek supports text-generation
-            huggingfacehub_api_token=api_key,
-            temperature=0.2,
-            max_new_tokens=512
-        )
-        print(f"✅ Using Hugging Face LLM: {requested_repo}")
-    except Exception as e:
-        print(f"⚠️ Failed to init {requested_repo} → {e}")
-        # fallback to a lighter, supported model
-        fallback_repo = "google/flan-t5-base"
-        active_repo = fallback_repo
-        print(f"👉 Falling back to {fallback_repo}")
-        llm = HuggingFaceEndpoint(
-            repo_id=fallback_repo,
-            task="text-generation",
-            huggingfacehub_api_token=api_key,
-            temperature=0.2,
-            max_new_tokens=512
+        # Create HF pipeline
+        generator = pipeline(
+            "text-generation",
+            model=repo_id,
+            device=-1,               # -1 = CPU, 0 = GPU if available
         )
 
-    # Show active model in Streamlit UI
-    st.sidebar.info(f"**Active LLM Model:** {active_repo}")
+        # Wrap in LangChain
+        llm = HuggingFacePipeline(pipeline=generator)
+        print(f"✅ Local model loaded successfully: {repo_id}")
+    except Exception as e:
+        print(f"⚠️ Failed to load {repo_id} → {e}")
+        # Fallback to a very small model
+        repo_id = "distilgpt2"
+        generator = pipeline("text-generation", model=repo_id, device=-1)
+        llm = HuggingFacePipeline(pipeline=generator)
+        print(f"👉 Fallback activated: {repo_id}")
+
+    # Show active model in Streamlit sidebar
+    st.sidebar.info(f"**Active Local Model:** {repo_id}")
 
     # --- Prompt Template ---
     conditional_prompt = PromptTemplate.from_template(
         """
         You are an expert assistant for railway-related queries.
-        Always use the provided context to answer the question. 
-        If the answer is not in the context, say you don’t know.
-        
+        Use the provided context. If the answer is not in the context, say you don’t know.
+
         Context:
         {context}
 
         Question:
         {question}
 
-        Answer (with clarity and precision):
+        Answer:
         """
     )
 
@@ -144,5 +132,6 @@ def get_rag_chain(retriever, config: dict):
         | StrOutputParser()
     )
 
-    print(f"Final Active LLM in use: {active_repo}")
+    print(f"Final active local model in use: {repo_id}")
     return rag_chain
+
