@@ -107,19 +107,25 @@ def get_rag_chain(retriever, config: dict):
 
     # --- Prompt Template ---
     conditional_prompt = PromptTemplate.from_template(
-        """
-        You are an expert assistant for railway-related queries.
-        Use the provided context. If the answer is not in the context, say you don’t know.
+    """
+    You are an expert assistant for Indian Railways queries.
+    Answer the question clearly using ONLY the provided context. 
+    Follow these rules strictly:
+    1. Give the answer in **bullet points** (• or -).
+    2. Keep each point short and clear (1–2 sentences max).
+    3. If the answer is not in the context, reply: "I don’t know based on the provided documents."
+    4. At the end of your answer, include a **Sources** section with the documents/pages mentioned in the context.
 
-        Context:
-        {context}
+    Context:
+    {context}
 
-        Question:
-        {question}
+    Question:
+    {question}
 
-        Answer:
-        """
-    )
+    Final Answer:
+    """
+)
+
 
     # --- Format retrieved docs with safeguard ---
     def format_docs_with_sources(docs):
