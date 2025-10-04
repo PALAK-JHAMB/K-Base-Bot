@@ -151,8 +151,8 @@ sys.path.append(PROJECT_ROOT)
 from src.ingestion.excel_parser import parse_excel_qa
 from src.bot_engine.gemini_responder import get_rag_chain
 from src.vector_store.vector_builder import build_vector_store
-from langchain_huggingface import HuggingFaceEmbeddings
-from langchain_community.vectorstores import FAISS
+from langchain_huggingface import HuggingFaceEmbeddings   # ✅ modern import
+from langchain_community.vectorstores import FAISS        # still in community
 
 
 # --- Page Configuration ---
