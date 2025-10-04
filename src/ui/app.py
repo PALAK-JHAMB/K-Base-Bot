@@ -1,22 +1,15 @@
 import streamlit as st
-import yaml
-import sys
-import os
+import yaml, sys, os
 from thefuzz import process
 
-# --- System Path Setup ---
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
 sys.path.append(PROJECT_ROOT)
 
-# --- Backend Imports ---
 from src.ingestion.excel_parser import parse_excel_qa
 from src.bot_engine.gemini_responder import get_rag_chain
 from src.vector_store.vector_builder import build_vector_store
-# --- THIS IS THE CORRECTED IMPORT PATH YOU FOUND ---
-from langchain_community.embeddings.huggingface import HuggingFaceInferenceAPIEmbeddings
-from langchain_community.vectorstores import FAISS
+from src.vector_store.retriever import get_retriever
 
-# --- Page Configuration ---
 st.set_page_config(page_title="Document & FAQ Chatbot", layout="wide")
 st.title("IRCTC Chatbot: Ask all your queries")
 st.subheader("CENTER FOR RAILWAY INFORMATION SYSTEMS")
@@ -24,12 +17,7 @@ st.write("Ask a question about your documents, or check our FAQs!")
 
 @st.cache_resource
 def load_all_resources():
-    """
-    Loads all resources, using the Hugging Face Inference API for embeddings.
-    """
     print("\n--- INITIATING RESOURCE LOADING ---")
-
-    # --- 1. Load Config (Secrets-First) ---
     config = {}
     try:
         settings_path = os.path.join(PROJECT_ROOT, "config", "settings.yaml")
@@ -39,7 +27,6 @@ def load_all_resources():
     except FileNotFoundError:
         print("1. 'settings.yaml' not found. Using hardcoded defaults.")
         config = {
-            "huggingface": {},
             "data": {
                 "pdf_path": "data/pdf",
                 "excel_path": "data/excelfile.xlsx",
@@ -47,41 +34,26 @@ def load_all_resources():
             },
             "ingestion": {"parsing_strategy": "fast", "process_images": False}
         }
-    
-    if "HUGGINGFACEHUB_API_TOKEN" in st.secrets:
-        if 'huggingface' not in config: config['huggingface'] = {}
-        config['huggingface']['api_key'] = st.secrets["HUGGINGFACEHUB_API_TOKEN"]
-        print("   Successfully loaded Hugging Face API token from secrets.")
-    else:
-        st.error("HUGGINGFACEHUB_API_TOKEN not found in Streamlit secrets!")
-        st.stop()
 
-    # --- 2. Build Vector Store if it doesn't exist ---
     vector_store_path = os.path.join(PROJECT_ROOT, config['data']['vector_store_path'])
     if not os.path.exists(vector_store_path):
         st.info("Knowledge base not found. Building it now...")
         build_vector_store(config)
     
-    # --- 3. Load the Vector Store and Create the Retriever ---
-    retriever = None
+    faq_data, retriever, rag_chain = None, None, None
+    
     try:
-        print("Loading vector store and creating retriever...")
-        embeddings = HuggingFaceInferenceAPIEmbeddings(
-            api_key=config['huggingface']['api_key'], 
-            model_name="sentence-transformers/all-MiniLM-L6-v2"
-        )
-        vector_store = FAISS.load_local(
-            vector_store_path, embeddings, allow_dangerous_deserialization=True
-        )
-        retriever = vector_store.as_retriever(search_kwargs={"k": 7})
-        print(f"Retriever Loaded: SUCCESS")
+        excel_path = os.path.join(PROJECT_ROOT, config['data']['excel_path'])
+        faq_data = parse_excel_qa(excel_path)
+        print(f"FAQ Data Loaded: {'SUCCESS' if faq_data is not None else 'FAILED'}")
+    except Exception as e:
+        print(f"FAQ Data Loaded: FAILED with an exception: {e}")
+
+    try:
+        retriever = get_retriever(config)
+        print(f"Retriever Loaded: {'SUCCESS' if retriever is not None else 'FAILED'}")
     except Exception as e:
         print(f"Retriever Loaded: FAILED with an exception: {e}")
-
-    # --- 4. Load other resources (FAQ DISABLED) ---
-    faq_data = None
-    rag_chain = None
-    print(f"FAQ Data Loaded: SKIPPED (to conserve memory)")
 
     try:
         rag_chain = get_rag_chain(retriever, config)
@@ -89,12 +61,14 @@ def load_all_resources():
     except Exception as e:
         print(f"RAG Chain Loaded: FAILED with an exception: {e}")
     
-    if retriever is None or rag_chain is None:
-        st.error("Failed to load the RAG pipeline. Please check the logs.")
+    if faq_data is None or retriever is None or rag_chain is None:
+        st.error("Failed to load one or more resources...")
         st.stop()
         
     print("--- ALL RESOURCES LOADED SUCCESSFULLY ---\n")
     return faq_data, retriever, rag_chain
+
+faq_data, retriever, rag_chain = load_all_resources()
 
 # ...
 def get_faq_answer(query: str, faqs: list[dict]) -> str or None:
