@@ -12,8 +12,8 @@ sys.path.append(PROJECT_ROOT)
 from src.ingestion.excel_parser import parse_excel_qa
 from src.bot_engine.gemini_responder import get_rag_chain
 from src.vector_store.vector_builder import build_vector_store
-# --- THIS IS THE CORRECTED IMPORT ---
-from langchain_huggingface.embeddings import HuggingFaceInferenceAPIEmbeddings
+# --- THIS IS THE CORRECTED IMPORT PATH YOU FOUND ---
+from langchain_community.embeddings.huggingface import HuggingFaceInferenceAPIEmbeddings
 from langchain_community.vectorstores import FAISS
 
 # --- Page Configuration ---
@@ -95,6 +95,7 @@ def load_all_resources():
         
     print("--- ALL RESOURCES LOADED SUCCESSFULLY ---\n")
     return faq_data, retriever, rag_chain
+
 # ...
 def get_faq_answer(query: str, faqs: list[dict]) -> str or None:
     if not faqs: return None
