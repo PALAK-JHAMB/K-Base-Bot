@@ -55,7 +55,7 @@
 # CHATGPT VAALAAA
 import os
 import streamlit as st
-from langchain_huggingface import ChatHuggingFace   # ✅ new import
+from langchain_huggingface import HuggingFaceEndpoint   # ✅ new class
 from langchain_core.prompts import PromptTemplate
 from langchain_core.runnables import RunnablePassthrough
 from langchain_core.output_parsers import StrOutputParser
@@ -69,12 +69,12 @@ def get_rag_chain(retriever, config: dict):
     else:
         raise ValueError("❌ HUGGINGFACEHUB_API_TOKEN not found in Streamlit secrets!")
 
-    # --- Initialize LLM directly with ChatHuggingFace ---
+    # --- Initialize Hugging Face Endpoint ---
     repo_id = "mistralai/Mistral-7B-Instruct-v0.2"
-    llm = ChatHuggingFace.from_model_id(
-        model_id=repo_id,
-        task="text-generation",
+    llm = HuggingFaceEndpoint(
+        repo_id=repo_id,
         huggingfacehub_api_token=api_key,
+        task="text-generation",   # required for instruct models
         model_kwargs={"temperature": 0.2, "max_new_tokens": 1024}
     )
     print("RAG Chain: LLM initialized successfully.")
