@@ -71,30 +71,34 @@ def get_rag_chain(retriever, config: dict):
         raise ValueError("❌ HUGGINGFACEHUB_API_TOKEN not found in Streamlit secrets!")
 
     # --- Load model repo ID from config ---
-    repo_id = config.get("huggingface", {}).get("llm_repo_id", "google/flan-t5-base")
-    print(f"Requested LLM: {repo_id}")
+    requested_repo = config.get("huggingface", {}).get("llm_repo_id", "google/flan-t5-base")
+    active_repo = requested_repo
+    print(f"🔎 Requested LLM from config: {requested_repo}")
 
     # --- Try to initialize LLM ---
-    llm = None
     try:
         llm = HuggingFaceEndpoint(
-            repo_id=repo_id,
+            repo_id=requested_repo,
             task="text-generation",
             huggingfacehub_api_token=api_key,
             temperature=0.2,
             max_new_tokens=512
         )
-        print(f"RAG Chain: LLM initialized successfully with {repo_id}")
+        print(f"✅ Using Hugging Face LLM: {requested_repo}")
     except Exception as e:
-        print(f"⚠️ Failed to init {repo_id} → {e}")
-        print("👉 Falling back to google/flan-t5-base")
+        print(f"⚠️ Failed to init {requested_repo} → {e}")
+        active_repo = "google/flan-t5-base"
+        print(f"👉 Falling back to: {active_repo}")
         llm = HuggingFaceEndpoint(
-            repo_id="google/flan-t5-base",
+            repo_id=active_repo,
             task="text-generation",
             huggingfacehub_api_token=api_key,
             temperature=0.2,
             max_new_tokens=512
         )
+
+    # --- Display active model in Streamlit ---
+    st.sidebar.info(f"**Active LLM Model:** {active_repo}")
 
     # --- Prompt Template ---
     conditional_prompt = PromptTemplate.from_template(
@@ -138,5 +142,5 @@ def get_rag_chain(retriever, config: dict):
         | StrOutputParser()
     )
 
-    print("RAG Chain: Chain built successfully.")
+    print(f" Final Active LLM in use: {active_repo}")
     return rag_chain
