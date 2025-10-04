@@ -1,0 +1,3 @@
+
+[server]
+folderWatchBlacklist = ["vector_store", "data", "venv", "chatbot_env"]
