@@ -79,7 +79,10 @@ def get_rag_chain(retriever, config: dict):
             "text-generation",
             model=model,
             tokenizer=tokenizer,
-            device=-1,       # -1 = CPU, 0 = GPU if available
+            device=-1, 
+            # -1 = CPU, 0 = GPU if available
+            max_length=512, 
+            truncation=True
         )
 
         # Wrap in LangChain
@@ -118,6 +121,8 @@ def get_rag_chain(retriever, config: dict):
     # --- Format retrieved docs with sources ---
     def format_docs_with_sources(docs):
         context = "\n\n---\n\n".join([d.page_content for d in docs])
+        if len(context)>1000:
+            context = context[:1000] + "...[truncated]"
         sources_dict = {}
         for doc in docs:
             source = os.path.basename(doc.metadata.get("source", "Unknown"))
