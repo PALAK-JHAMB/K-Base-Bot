@@ -73,9 +73,10 @@ def get_rag_chain(retriever, config: dict):
     repo_id = "mistralai/Mistral-7B-Instruct-v0.2"
     llm = HuggingFaceEndpoint(
         repo_id=repo_id,
-        task="text-generation",   # required for instruct/chat models
+        task="text-generation",
         huggingfacehub_api_token=api_key,
-        model_kwargs={"temperature": 0.2, "max_new_tokens": 1024}
+        temperature=0.2,         # ✅ explicit args
+        max_new_tokens=1024      # ✅ explicit args
     )
     print("RAG Chain: LLM initialized successfully.")
 
