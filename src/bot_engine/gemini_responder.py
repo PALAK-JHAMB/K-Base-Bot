@@ -55,8 +55,7 @@
 # CHATGPT VAALAAA
 import os
 import streamlit as st
-from langchain_community.chat_models import ChatHuggingFace
-from langchain_community.llms import HuggingFaceHub   # ✅ correct import
+from langchain_huggingface import ChatHuggingFace   # ✅ new import
 from langchain_core.prompts import PromptTemplate
 from langchain_core.runnables import RunnablePassthrough
 from langchain_core.output_parsers import StrOutputParser
@@ -65,24 +64,19 @@ from langchain_core.output_parsers import StrOutputParser
 def get_rag_chain(retriever, config: dict):
     print("RAG Chain: Initializing...")
 
-    # --- API Key from Streamlit Secrets ---
     if "HUGGINGFACEHUB_API_TOKEN" in st.secrets:
         api_key = st.secrets["HUGGINGFACEHUB_API_TOKEN"]
     else:
         raise ValueError("❌ HUGGINGFACEHUB_API_TOKEN not found in Streamlit secrets!")
 
-    # --- Initialize Hugging Face Hub model ---
-    print("RAG Chain: Initializing LLM via Hugging Face Inference API (Mistral-7B)...")
+    # --- Initialize LLM directly with ChatHuggingFace ---
     repo_id = "mistralai/Mistral-7B-Instruct-v0.2"
-
-    hf_llm = HuggingFaceHub(
-        repo_id=repo_id,
+    llm = ChatHuggingFace.from_model_id(
+        model_id=repo_id,
+        task="text-generation",
         huggingfacehub_api_token=api_key,
         model_kwargs={"temperature": 0.2, "max_new_tokens": 1024}
     )
-
-    # Wrap into chat model
-    llm = ChatHuggingFace(llm=hf_llm)
     print("RAG Chain: LLM initialized successfully.")
 
     # --- Prompt Template ---
@@ -129,4 +123,5 @@ def get_rag_chain(retriever, config: dict):
 
     print("RAG Chain: Chain built successfully.")
     return rag_chain
+
 
