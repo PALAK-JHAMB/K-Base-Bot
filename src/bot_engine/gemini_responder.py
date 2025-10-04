@@ -71,7 +71,7 @@ def get_rag_chain(retriever, config: dict):
         raise ValueError("❌ HUGGINGFACEHUB_API_TOKEN not found in Streamlit secrets!")
 
     # --- Load model repo ID from config ---
-    requested_repo = config.get("huggingface", {}).get("llm_repo_id", "google/flan-t5-base")
+    requested_repo = config.get("huggingface", {}).get("llm_repo_id", "tiiuae/falcon-7b-instruct")
     active_repo = requested_repo
     print(f"🔎 Requested LLM from config: {requested_repo}")
 
@@ -87,7 +87,7 @@ def get_rag_chain(retriever, config: dict):
         print(f"✅ Using Hugging Face LLM: {requested_repo}")
     except Exception as e:
         print(f"⚠️ Failed to init {requested_repo} → {e}")
-        active_repo = "google/flan-t5-base"
+        active_repo = "tiiuae/falcon-7b-instruct"
         print(f"👉 Falling back to: {active_repo}")
         llm = HuggingFaceEndpoint(
             repo_id=active_repo,
