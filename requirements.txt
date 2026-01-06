@@ -1,50 +1,28 @@
-google-generativeai
-python-dotenv
-pandas
-openpyxl
-pypdf
-langchain
-langchain-google-genai
-faiss-cpu
+# ---- Core ----
+streamlit==1.31.0
+python-dotenv==1.0.1
+pandas==2.1.4
+openpyxl==3.1.2
+pyyaml==6.0.1
+nest_asyncio==1.6.0
 
+# ---- LLM ----
+openai==0.28.1
+google-generativeai==0.3.2
 
-
-unstructured
-
-
-
-# --- Document Ingestion and Advanced Parsing ---
-# Using [all-docs] pulls in all necessary dependencies for complex PDFs,
-# including tables and layout detection models (like detectron2).
-unstructured[all-docs]
-
-
-
-
-
-
-
-langchain-community
-unstructured[pdf]
-unstructured_inference
-pdfminer.six
-pi-heif
-pillow
-pyyaml
-
-
-thefuzz
-python-Levenshtein 
-
-google.generativeai
-nest_asyncio
-
-
-
-streamlit
+# ---- LangChain (PINNED & STABLE) ----
 langchain==0.0.353
-langchain-huggingface
-sentence-transformers
-langchain_huggingface
+langchain-community==0.0.20
 
+# ---- Embeddings & Vector Store ----
+faiss-cpu==1.7.4
+sentence-transformers==2.2.2
 
+# ---- PDF Parsing (LIGHTWEIGHT) ----
+pypdf==3.17.4
+pdfminer.six==20221105
+pillow==10.2.0
+
+# ---- Utils ----
+thefuzz==0.20.0
+python-Levenshtein==0.23.0
