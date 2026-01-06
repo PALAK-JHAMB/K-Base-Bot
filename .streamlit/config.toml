@@ -1,3 +1,3 @@
-
 [server]
+pythonVersion = "3.10"
 folderWatchBlacklist = ["vector_store", "data", "venv", "chatbot_env"]
