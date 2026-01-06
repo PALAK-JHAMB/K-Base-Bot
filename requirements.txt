@@ -42,7 +42,7 @@ nest_asyncio
 
 
 streamlit
-langchain
+langchain==0.0.353
 langchain-huggingface
 sentence-transformers
 langchain_huggingface
